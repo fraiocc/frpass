@@ -1,0 +1,21 @@
+name: FrPass
+version: '${version}'
+main: cc.fraio.frpass.FrPass
+api-version: '1.21'
+prefix: FrPass
+authors: [ Fraio ]
+website: "https://fraio.cc"
+description: Advanced, completely customizable packet-based Battlepass.
+depend: [packetevents]
+softdepend: [Vault, PlaceholderAPI]
+
+commands:
+  frpass:
+    description: Main player command
+    aliases: [ pass, battlepass ]
+  frpassadmin:
+    description: Main admin command
+    permission: frpass.admin
+
+libraries:
+  - "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"

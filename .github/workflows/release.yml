@@ -1,0 +1,61 @@
+name: Auto Build & Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Extract Version
+        id: get_version
+        run: |
+          VERSION=$(grep 'version = ' build.gradle.kts | cut -d'"' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build with Gradle
+        run: ./gradlew build shadowJar --no-daemon
+
+      - name: Check if Tag Exists
+        uses: mukunku/tag-exists-action@v1.6.0
+        id: checkTag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: v${{ steps.get_version.outputs.version }}
+
+      - name: Create Release
+        if: steps.checkTag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: FrPass v${{ steps.get_version.outputs.version }}
+          body: |
+            ## 🚀 FrPass Update (v${{ steps.get_version.outputs.version }})
+            
+            This release was automatically compiled and published by GitHub Actions!
+            Download the `.jar` file below and drop it into your `plugins` folder.
+          files: build/libs/FrPass-${{ steps.get_version.outputs.version }}.jar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

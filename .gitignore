@@ -1,0 +1,54 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Bukkit / Spigot / Paper Test Server
+server/
+run/
+logs/
+plugins/
+world/
+world_nether/
+world_the_end/
+ops.json
+banned-ips.json
+banned-players.json
+whitelist.json
+usercache.json
+server.properties
+spigot.yml
+bukkit.yml
+paper.yml
+paper-global.yml
+eula.txt

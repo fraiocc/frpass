@@ -1,0 +1,36 @@
+quests:
+  mine_diamonds:
+    display-name: "Break Diamonds"
+    type: BREAK_BLOCK
+    target: DIAMOND_ORE
+    required-amount: 10
+    reward-xp: 100
+    extra-rewards:
+      - "[MONEY] 1000"
+      - "[MESSAGE] &aYou completed the diamond mining quest!"
+  
+  kill_zombies:
+    type: KILL_MOB
+    target: ZOMBIE
+    required-amount: 25
+    reward-xp: 50
+    extra-rewards: []
+
+  kill_players:
+    type: KILL_PLAYER
+    required-amount: 5
+    reward-xp: 150
+    extra-rewards: []
+
+  walk_1000:
+    type: WALK
+    required-amount: 1000
+    reward-xp: 200
+    extra-rewards: []
+
+  playtime_60:
+    type: PLAYTIME
+    required-amount: 60
+    reward-xp: 300
+    extra-rewards:
+      - "[MESSAGE] &bThanks for playing 1 hour!"

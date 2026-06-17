@@ -1,0 +1,25 @@
+messages:
+  only-players: "&cThis command is only for players."
+  admin-usage: "&cUsage: /frpassadmin <addxp|setpremium|reload>"
+  player-not-found: "&cPlayer not found."
+  invalid-amount: "&cInvalid amount."
+  added-xp: "&aAdded %amount% XP to %player%."
+  set-premium: "&aSet premium status of %player% to %state%."
+  plugin-reloaded: "&aPlugin reloaded successfully."
+  quest-completed: "%prefix%&aYou completed the quest: &f%quest% &a(+%xp% XP)"
+  level-up: "%prefix%&aLevel Up! You are now tier %tier%."
+
+gui:
+  quest-item:
+    name: "&eQuest: &f%quest%"
+    lore-type: "&7Type: &f%type%"
+    lore-progress: "&7Progress: &f%progress% / %required%"
+    lore-reward: "&7Reward: &a%xp% XP"
+    lore-completed: "&a&lCOMPLETED!"
+  tier-item:
+    name: "&aTier %tier%"
+    lore-xp: "&7Required XP: &f%xp%"
+    status-prefix: "&7Status: "
+    status-claimed: "&aClaimed"
+    status-unlocked: "&eClick to claim"
+    status-locked: "&cLocked"

@@ -1,0 +1,53 @@
+# Contributing to FrPass
+
+First off, thank you for considering contributing to **FrPass**! 🎉
+
+FrPass is an open-source project (licensed under LGPLv3), and we believe in complete transparency. Whether you are fixing a bug, proposing a new feature, or improving documentation, your help is always welcome.
+
+Below you'll find a clear and simple guide on how to contribute to this project.
+
+---
+
+## 🐛 Found a Bug?
+If you find a bug in the source code or a mistake in the documentation, you can help us by submitting an issue to our GitHub Repository.
+
+Before you create an issue, please check if a similar issue already exists. When submitting an issue, please include:
+- Your server version (e.g., Paper 1.21)
+- FrPass version (e.g., 0.1.0)
+- Steps to reproduce the bug
+- Any console errors (stack traces) related to the bug
+
+## 💡 Suggesting Enhancements
+Have an idea for a new quest type? A new API method? We love new ideas!
+Submit an issue with the **[Feature Request]** tag and explain:
+- What the feature is.
+- Why it would be useful for server owners or developers.
+- How you envision it working.
+
+## 💻 Contributing Code
+If you want to get your hands dirty and write some Kotlin, follow these steps:
+
+1. **Fork the repository** on GitHub.
+2. **Clone your fork** locally: `git clone https://github.com/your-username/FrPass.git`
+3. **Create a new branch** for your feature or bugfix: `git checkout -b feature/my-awesome-feature`
+4. **Make your changes**. Please try to follow the existing Kotlin coding style and keep things tidy.
+5. **Test your changes** on a local Minecraft server.
+6. **Commit your changes** with a clear commit message: `git commit -m "Add new Playtime quest type"`
+7. **Push to your branch**: `git push origin feature/my-awesome-feature`
+8. **Open a Pull Request** against our `main` branch.
+
+### Development Environment Setup
+- **Java:** JDK 21 (Required for Paper 1.21)
+- **Kotlin:** 1.9.22
+- **Build Tool:** Gradle
+
+Simply open the project in IntelliJ IDEA (or your preferred IDE) and let Gradle handle the dependencies.
+
+---
+
+## 📜 License & Transparency
+By contributing your code to FrPass, you agree that your contributions will be licensed under the same **GNU LGPLv3** license as the rest of the project.
+
+We review every Pull Request transparently. If a PR isn't accepted right away, we will always provide clear feedback on what needs to be changed.
+
+Thank you for helping us make FrPass better! ❤️

@@ -1,0 +1,27 @@
+tiers:
+  '1':
+    required-xp: 100
+    display:
+      material: EMERALD
+      name: "&aTier 1 &7(Premium Only)"
+      lore:
+        - "&7Required XP: &f100"
+        - "&7Reward: &a5000 Coins"
+    premium-rewards:
+      - "[MESSAGE] &eYou reached Premium Tier 1!"
+      - "[MONEY] 5000"
+      - "[COMMAND] give %player% diamond 5"
+  '2':
+    required-xp: 250
+    display:
+      material: DIAMOND
+      name: "&bTier 2"
+      lore:
+        - "&7Required XP: &f250"
+        - "&7Free Reward: &a500 XP"
+        - "&ePremium Reward: &a1500 XP"
+    free-rewards:
+      - "[XP] 500"
+    premium-rewards:
+      - "[XP] 1500"
+      - "[ITEM] EMERALD:10"

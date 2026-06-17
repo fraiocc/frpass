@@ -1,0 +1,27 @@
+database:
+  type: SQLITE
+  file: "database.db"
+
+settings:
+  lang: "en"
+  prefix: "&8[&bFrPass&8] &7"
+  sounds:
+    level-up: "ENTITY_PLAYER_LEVELUP"
+    quest-complete: "ENTITY_EXPERIENCE_ORB_PICKUP"
+    claim-reward: "ENTITY_VILLAGER_YES"
+
+tier-icons:
+  claimed:
+    material: "MINECART"
+    custom-model-data: 0
+  unlocked:
+    material: "CHEST_MINECART"
+    custom-model-data: 0
+  locked:
+    material: "HOPPER_MINECART"
+    custom-model-data: 0
+
+quest-system:
+  mode: ROTATING # Options: ALL, ROTATING
+  rotate-interval: DAILY # Options: DAILY, WEEKLY
+  rotate-amount: 5

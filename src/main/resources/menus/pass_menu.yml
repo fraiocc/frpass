@@ -1,0 +1,27 @@
+menu:
+  title: "&8Battlepass (Page %page%)"
+  size: 27
+
+  items:
+    background:
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      slots: [10, 11, 12, 14, 15, 16]
+      custom-model-data: 0
+    back_button:
+      material: BARRIER
+      name: "&cGo Back"
+      slots: [13]
+      lore:
+        - "&7Click to return to main menu."
+    prev_page:
+      material: ARROW
+      name: "&cPrevious Page"
+      slots: [9]
+    next_page:
+      material: ARROW
+      name: "&aNext Page"
+      slots: [17]
+
+  free-tier-slots: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  premium-tier-slots: [18, 19, 20, 21, 22, 23, 24, 25, 26]
