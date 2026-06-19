@@ -16,12 +16,16 @@ import cc.fraio.frpass.managers.PlayerDataManager
 import cc.fraio.frpass.managers.QuestManager
 import cc.fraio.frpass.managers.RewardManager
 import cc.fraio.frpass.managers.TierManager
+import cc.fraio.frpass.managers.TicketManager
 import cc.fraio.frpass.menus.MenuManager
 import cc.fraio.frpass.tasks.QuestTasks
 import cc.fraio.frpass.api.FrPassAPI
 import cc.fraio.frpass.api.FrPassProvider
 import cc.fraio.frpass.quests.QuestType
+import cc.fraio.frpass.listeners.TicketListener
+import cc.fraio.frpass.utils.ConfigWatcher
 import cc.fraio.frpass.utils.UpdateChecker
+import com.tcoded.folialib.FoliaLib
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
@@ -31,39 +35,31 @@ import java.util.UUID
 
 class FrPass : JavaPlugin(), FrPassAPI {
     
-    lateinit var configManager: ConfigManager
-        private set
-    lateinit var langManager: LangManager
-        private set
-    lateinit var databaseManager: DatabaseManager
-        private set
-    lateinit var menuManager: MenuManager
-        private set
-    lateinit var rewardManager: RewardManager
-        private set
-    lateinit var tierManager: TierManager
-        private set
-    lateinit var playerDataManager: PlayerDataManager
-        private set
-    lateinit var questManager: QuestManager
-        private set
-    lateinit var questTasks: QuestTasks
-        private set
-    lateinit var cycleManager: CycleManager
-        private set
-    lateinit var updateChecker: UpdateChecker
-        private set
+    lateinit var configManager: ConfigManager private set
+    lateinit var langManager: LangManager private set
+    lateinit var databaseManager: DatabaseManager private set
+    lateinit var menuManager: MenuManager private set
+    lateinit var rewardManager: RewardManager private set
+    lateinit var tierManager: TierManager private set
+    lateinit var playerDataManager: PlayerDataManager private set
+    lateinit var questManager: QuestManager private set
+    lateinit var questTasks: QuestTasks private set
+    lateinit var cycleManager: CycleManager private set
+    lateinit var updateChecker: UpdateChecker private set
+    lateinit var ticketManager: TicketManager private set
+    lateinit var configWatcher: ConfigWatcher private set
+    lateinit var foliaLib: FoliaLib private set
 
     override fun onLoad() {
         PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
         PacketEvents.getAPI().settings
             .reEncodeByDefault(false)
             .checkForUpdates(false)
-            .bStats(true)
         PacketEvents.getAPI().load()
     }
 
     override fun onEnable() {
+        foliaLib = FoliaLib(this)
         PacketEvents.getAPI().init()
         
         if (VaultHook.setupEconomy()) {
@@ -102,12 +98,18 @@ class FrPass : JavaPlugin(), FrPassAPI {
         questTasks = QuestTasks(this)
         questTasks.startTasks()
         
+        ticketManager = TicketManager(this)
+        
         server.pluginManager.apply {
             registerEvents(InventoryListener(this@FrPass), this@FrPass)
             registerEvents(PlayerConnectionListener(this@FrPass), this@FrPass)
             registerEvents(QuestListener(this@FrPass), this@FrPass)
+            registerEvents(TicketListener(this@FrPass), this@FrPass)
         }
         PacketEvents.getAPI().eventManager.registerListener(MenuPacketListener(this), com.github.retrooper.packetevents.event.PacketListenerPriority.NORMAL)
+        
+        configWatcher = ConfigWatcher(this)
+        configWatcher.start()
         
         getCommand("frpass")?.setExecutor(PassCommand(this))
         getCommand("frpassadmin")?.let {
@@ -118,18 +120,28 @@ class FrPass : JavaPlugin(), FrPassAPI {
         
         FrPassProvider.register(this)
         
-        updateChecker = cc.fraio.frpass.utils.UpdateChecker(this)
+        updateChecker = UpdateChecker(this)
         updateChecker.checkForUpdates()
         
         logger.info("FrPass enabled successfully!")
     }
 
+    fun reloadAll() {
+        configManager.reload()
+        langManager.load()
+        tierManager.loadAll()
+        questManager.loadAll()
+    }
+
     override fun onDisable() {
+        if (::configWatcher.isInitialized) {
+            configWatcher.stop()
+        }
         if (this::databaseManager.isInitialized) {
             databaseManager.disconnect()
         }
         PacketEvents.getAPI().terminate()
-        logger.info("FrPass disabled successfully!")
+        logger.info("FrPass has been disabled!")
     }
 
     // API Implementations

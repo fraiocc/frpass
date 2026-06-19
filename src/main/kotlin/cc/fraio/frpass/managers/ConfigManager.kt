@@ -14,8 +14,6 @@ class ConfigManager(private val plugin: FrPass) {
     fun loadAll() {
         config = loadConfig("config.yml")
         passMenu = loadConfig("menus/pass_menu.yml")
-        
-        // Menü dosyalarının plugin açıldığında anında klasöre çıkması için:
         loadConfig("menus/main_menu.yml")
         loadConfig("menus/quests_menu.yml")
     }

@@ -4,6 +4,7 @@ import cc.fraio.frpass.FrPass
 import org.bukkit.Bukkit
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.function.Consumer
 
 class UpdateChecker(private val plugin: FrPass) {
 
@@ -13,7 +14,7 @@ class UpdateChecker(private val plugin: FrPass) {
     var downloadLink = "https://github.com/$repo/releases/latest"
 
     fun checkForUpdates() {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+        plugin.foliaLib.impl.runAsync(Consumer { task ->
             try {
                 val url = URL("https://api.github.com/repos/$repo/releases/latest")
                 val connection = url.openConnection() as HttpURLConnection

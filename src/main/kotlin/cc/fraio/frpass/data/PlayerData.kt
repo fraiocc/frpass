@@ -11,5 +11,6 @@ data class PlayerData(
     val claimedPremiumTiers: MutableList<Int> = mutableListOf(),
     val questProgress: MutableMap<String, Int> = mutableMapOf(),
     var questCycle: Int = 0,
-    var activeQuests: MutableList<String> = mutableListOf()
+    var activeQuests: MutableList<String> = mutableListOf(),
+    var pendingTickets: Int = 0
 )

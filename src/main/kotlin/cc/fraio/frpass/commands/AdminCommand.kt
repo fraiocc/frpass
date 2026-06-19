@@ -10,9 +10,8 @@ import org.bukkit.command.TabCompleter
 class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
     
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
-        val prefix = plugin.configManager.config.getString("settings.prefix") ?: "&8[&bFrPass&8] "
-        
         if (!sender.hasPermission("frpass.admin")) {
+            val prefix = plugin.configManager.config.getString("settings.prefix", "&8[&bFrPass&8] ") ?: "&8[&bFrPass&8] "
             sender.sendMessage(ColorUtils.colorize("$prefix&cNo permission."))
             return true
         }
@@ -23,12 +22,6 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         }
 
         when (args[0].lowercase()) {
-            "reload" -> {
-                plugin.configManager.reload()
-                plugin.tierManager.loadAll()
-                plugin.langManager.load()
-                sender.sendMessage(plugin.langManager.getMessage(null, "messages.plugin-reloaded"))
-            }
             "addxp" -> {
                 if (args.size < 3) {
                     sender.sendMessage(plugin.langManager.getMessage(null, "messages.admin-usage"))
@@ -70,7 +63,26 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     sender.sendMessage(plugin.langManager.getMessage(null, "messages.player-not-found"))
                 }
             }
+            "giveticket" -> {
+                if (args.size < 3) {
+                    sender.sendMessage(plugin.langManager.getMessage(null, "messages.admin-usage"))
+                    return true
+                }
+                val target = org.bukkit.Bukkit.getPlayer(args[1])
+                val amount = args[2].toIntOrNull()
+                if (target == null) {
+                    sender.sendMessage(plugin.langManager.getMessage(null, "messages.player-not-found"))
+                    return true
+                }
+                if (amount == null || amount <= 0) {
+                    sender.sendMessage(plugin.langManager.getMessage(null, "messages.invalid-amount"))
+                    return true
+                }
+                plugin.ticketManager.giveTicket(target, amount)
+                sender.sendMessage(plugin.langManager.getMessage(null, "messages.given-ticket", "%amount%" to amount.toString(), "%player%" to target.name))
+            }
             else -> {
+                val prefix = plugin.configManager.config.getString("settings.prefix", "&8[&bFrPass&8] ") ?: "&8[&bFrPass&8] "
                 sender.sendMessage(ColorUtils.colorize("$prefix&cUnknown command."))
             }
         }
@@ -82,16 +94,16 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         if (!sender.hasPermission("frpass.admin")) return emptyList()
         
         if (args.size == 1) {
-            val subCommands = listOf("reload", "addxp", "setpremium")
+            val subCommands = listOf("addxp", "setpremium", "giveticket")
             return subCommands.filter { it.startsWith(args[0], ignoreCase = true) }
         } else if (args.size == 2) {
             val cmd = args[0].lowercase()
-            if (cmd == "addxp" || cmd == "setpremium") {
+            if (cmd == "addxp" || cmd == "setpremium" || cmd == "giveticket") {
                 return org.bukkit.Bukkit.getOnlinePlayers().map { it.name }.filter { it.startsWith(args[1], ignoreCase = true) }
             }
         } else if (args.size == 3) {
             val cmd = args[0].lowercase()
-            if (cmd == "addxp") {
+            if (cmd == "addxp" || cmd == "giveticket") {
                 if (args[2].isEmpty()) return listOf("<amount>")
             } else if (cmd == "setpremium") {
                 return listOf("true", "false").filter { it.startsWith(args[2], ignoreCase = true) }

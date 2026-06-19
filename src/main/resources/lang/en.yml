@@ -1,6 +1,6 @@
 messages:
   only-players: "&cThis command is only for players."
-  admin-usage: "&cUsage: /frpassadmin <addxp|setpremium|reload>"
+  admin-usage: "&cUsage: /frpassadmin <addxp|setpremium|giveticket>"
   player-not-found: "&cPlayer not found."
   invalid-amount: "&cInvalid amount."
   added-xp: "&aAdded %amount% XP to %player%."
@@ -8,6 +8,12 @@ messages:
   plugin-reloaded: "&aPlugin reloaded successfully."
   quest-completed: "%prefix%&aYou completed the quest: &f%quest% &a(+%xp% XP)"
   level-up: "%prefix%&aLevel Up! You are now tier %tier%."
+  given-ticket: "&aGave &e%amount%x Premium Tickets &ato &e%player%&a."
+  ticket-received: "%prefix%&aYou received &e%amount%x Premium Ticket&a!"
+  ticket-queued: "%prefix%&cYour inventory is full! &e%amount%x Premium Tickets &cwere queued. Make space in your inventory to receive them!"
+  ticket-dequeued: "%prefix%&aYour inventory had space! &e%amount%x Premium Tickets &awere given to you from the queue!"
+  already-premium: "%prefix%&cYou already have the Premium Battlepass!"
+  ticket-used: "%prefix%&a&lSUCCESS! &eYou have unlocked the Premium Battlepass!"
 
 gui:
   quest-item:

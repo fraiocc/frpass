@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "cc.fraio"
-version = "0.1.0"
+version = "0.2.0"
 
 repositories {
     mavenCentral()
@@ -19,6 +19,7 @@ dependencies {
     compileOnly("com.github.MilkBowl:VaultAPI:1.7")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.github.retrooper:packetevents-spigot:2.12.2")
+    implementation("com.github.TechnicallyCoded:FoliaLib:0.4.3")
 }
 
 val targetJavaVersion = 21
@@ -36,6 +37,7 @@ tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
         exclude(dependency("org.jetbrains.kotlin:.*:.*"))
         exclude(dependency("org.jetbrains:annotations:.*"))
     }
+    relocate("com.tcoded.folialib", "cc.fraio.frpass.libs.folialib")
 }
 
 tasks.withType<ProcessResources> {

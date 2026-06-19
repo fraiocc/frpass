@@ -40,6 +40,8 @@ class LangManager(private val plugin: FrPass) {
 
     fun getMessage(player: Player?, path: String, vararg placeholders: Pair<String, String>): String {
         var msg = langConfig.getString(path, "&cMissing lang: $path")!!
+        val prefix = plugin.configManager.config.getString("settings.prefix", "&8[&bFrPass&8] &7") ?: ""
+        msg = msg.replace("%prefix%", prefix)
         for (p in placeholders) {
             msg = msg.replace(p.first, p.second)
         }

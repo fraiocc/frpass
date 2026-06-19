@@ -6,6 +6,7 @@
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-blueviolet.svg?style=for-the-badge&logo=kotlin)](https://kotlinlang.org)
 [![Paper](https://img.shields.io/badge/Paper-1.21-black.svg?style=for-the-badge&logo=paper)](https://papermc.io)
+[![Folia](https://img.shields.io/badge/Folia-Support-4CAF50.svg?style=for-the-badge)](https://papermc.io)
 [![PacketEvents](https://img.shields.io/badge/Powered_by-PacketEvents-ff69b4.svg?style=for-the-badge)](https://github.com/retrooper/packetevents)
 
 <br>
@@ -30,12 +31,18 @@ Keep your players engaged with our integrated questing system! You can set up cu
 ### 🔌 Developer API
 FrPass comes with a comprehensive API and custom Bukkit Events. Other developers can easily hook into FrPass to give custom items when players level up, or trigger global announcements when a quest is completed!
 
+### 🎟️ Premium Ticket & Auto-Queue
+Players can receive a physical "Premium Pass Ticket" item to consume. If their inventory is full, the system safely queues the ticket and automatically gives it when space opens up!
+
+### ⚙️ Auto-Reload (Zero Lag)
+No more typing `/reload`. FrPass uses an invisible asynchronous background watcher. Whenever you save a `.yml` file, the plugin instantly hot-reloads it in real-time without skipping a single tick!
+
 ---
 
 ## 🚀 Quick Setup
 
 1. **Install Dependencies:** You must install the `PacketEvents` plugin on your server. We also highly recommend `PlaceholderAPI` and `Vault`.
-2. **Install FrPass:** Place `FrPass-0.1.0.jar` into your `plugins` folder.
+2. **Install FrPass:** Place `FrPass-0.2.0.jar` into your `plugins` folder.
 3. **Restart your server:** Start your server so the default files are generated.
 4. **Configure:** Set up your tiers, rewards, and quests in the configuration files.
 5. **Done:** Use `/frpass` in-game to open the Battlepass!
@@ -50,6 +57,7 @@ FrPass comes with a comprehensive API and custom Bukkit Events. Other developers
 | `/frpassadmin` | `frpass.admin` | View admin commands. |
 | `/frpassadmin addxp <player> <amount>` | `frpass.admin` | Add or set XP for a player. |
 | `/frpassadmin setpremium <player> <true/false>` | `frpass.admin` | Give or remove Premium Pass status. |
+| `/frpassadmin giveticket <player> <amount>` | `frpass.admin` | Give a physical Premium Ticket. |
 
 ---
 

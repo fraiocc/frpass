@@ -5,6 +5,8 @@ import cc.fraio.frpass.quests.QuestType
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import java.util.UUID
+import java.util.concurrent.TimeUnit
+import java.util.function.Consumer
 
 class QuestTasks(private val plugin: FrPass) {
 
@@ -13,7 +15,7 @@ class QuestTasks(private val plugin: FrPass) {
 
     fun startTasks() {
         // Walk Task (Runs every 1 second)
-        Bukkit.getScheduler().runTaskTimer(plugin, Runnable {
+        plugin.foliaLib.impl.runTimerAsync(Consumer { task ->
             for (player in Bukkit.getOnlinePlayers()) {
                 val current = player.location
                 val last = lastLocations[player.uniqueId]
@@ -35,14 +37,14 @@ class QuestTasks(private val plugin: FrPass) {
                 }
                 lastLocations[player.uniqueId] = current
             }
-        }, 20L, 20L)
+        }, 1L, 1L, TimeUnit.SECONDS)
 
         // Playtime Task (Runs every 1 minute)
-        Bukkit.getScheduler().runTaskTimer(plugin, Runnable {
+        plugin.foliaLib.impl.runTimerAsync(Consumer { task ->
             for (player in Bukkit.getOnlinePlayers()) {
                 plugin.questManager.handleProgress(player, QuestType.PLAYTIME, null, 1)
             }
-        }, 1200L, 1200L)
+        }, 1L, 1L, TimeUnit.MINUTES)
     }
     
     fun cleanPlayer(uuid: UUID) {

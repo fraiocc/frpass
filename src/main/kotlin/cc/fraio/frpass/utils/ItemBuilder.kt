@@ -27,6 +27,14 @@ class ItemBuilder(material: Material) {
         return this
     }
 
+    fun setGlow(glow: Boolean): ItemBuilder {
+        if (glow) {
+            meta?.addEnchant(org.bukkit.enchantments.Enchantment.UNBREAKING, 1, true)
+            meta?.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS)
+        }
+        return this
+    }
+
     fun build(): ItemStack {
         item.itemMeta = meta
         return item

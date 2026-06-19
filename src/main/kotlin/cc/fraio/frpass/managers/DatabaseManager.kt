@@ -37,13 +37,18 @@ class DatabaseManager(private val plugin: FrPass) {
                 claimed_premium_tiers TEXT DEFAULT '',
                 quests_progress TEXT DEFAULT '',
                 quest_cycle INT DEFAULT 0,
-                active_quests TEXT DEFAULT ''
+                active_quests TEXT DEFAULT '',
+                pending_tickets INT DEFAULT 0
             );
         """.trimIndent()
         
         try {
             connection?.createStatement()?.use { statement ->
                 statement.execute(query)
+                // Add column for existing databases safely
+                try {
+                    statement.execute("ALTER TABLE player_data ADD COLUMN pending_tickets INT DEFAULT 0;")
+                } catch (ignored: Exception) {}
                 // If table already exists, try adding the columns safely
                 try {
                     statement.execute("ALTER TABLE player_data ADD COLUMN claimed_tiers TEXT DEFAULT ''")

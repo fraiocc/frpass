@@ -25,3 +25,15 @@ quest-system:
   mode: ROTATING # Options: ALL, ROTATING
   rotate-interval: DAILY # Options: DAILY, WEEKLY
   rotate-amount: 5
+
+premium-ticket:
+  material: "PAPER"
+  custom-model-data: 1000
+  name: "&e&lPremium Pass Ticket"
+  lore:
+    - "&7"
+    - "&7Right-click this item to"
+    - "&7unlock the &ePremium Battlepass&7!"
+    - "&7"
+    - "&aClick to use!"
+  glow: true

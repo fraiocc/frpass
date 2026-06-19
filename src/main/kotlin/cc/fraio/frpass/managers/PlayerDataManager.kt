@@ -5,21 +5,23 @@ import cc.fraio.frpass.data.PlayerData
 import cc.fraio.frpass.utils.ColorUtils
 import org.bukkit.Bukkit
 import java.util.UUID
+import java.util.concurrent.TimeUnit
+import java.util.function.Consumer
 
 class PlayerDataManager(private val plugin: FrPass) {
     private val cache = mutableMapOf<UUID, PlayerData>()
 
     fun init() {
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, Runnable {
+        plugin.foliaLib.impl.runTimerAsync(Consumer { task ->
             for (player in Bukkit.getOnlinePlayers()) {
                 savePlayer(player.uniqueId)
             }
-        }, 6000L, 6000L) // Auto-save every 5 minutes (6000 ticks)
+        }, 5L, 5L, TimeUnit.MINUTES) // Auto-save every 5 minutes
     }
 
     fun loadPlayer(uuid: UUID) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
-            val conn = plugin.databaseManager.getConnection() ?: return@Runnable
+        plugin.foliaLib.impl.runAsync(Consumer { task ->
+            val conn = plugin.databaseManager.getConnection() ?: return@Consumer
             val stmt = conn.prepareStatement("SELECT * FROM player_data WHERE uuid = ?")
             stmt.setString(1, uuid.toString())
             val rs = stmt.executeQuery()
@@ -33,6 +35,11 @@ class PlayerDataManager(private val plugin: FrPass) {
                 
                 val claimedPremiumStr = rs.getString("claimed_premium_tiers") ?: ""
                 val claimedPremiumTiers = if (claimedPremiumStr.isEmpty()) mutableListOf() else claimedPremiumStr.split(",").mapNotNull { it.toIntOrNull() }.toMutableList()
+                
+                var pendingTickets = 0
+                try {
+                    pendingTickets = rs.getInt("pending_tickets")
+                } catch (ignored: Exception) {}
                 
                 val questsStr = rs.getString("quests_progress") ?: ""
                 val questProgress = mutableMapOf<String, Int>()
@@ -49,7 +56,7 @@ class PlayerDataManager(private val plugin: FrPass) {
                 val activeStr = rs.getString("active_quests") ?: ""
                 val activeQuests = if (activeStr.isEmpty()) mutableListOf() else activeStr.split(",").toMutableList()
                 
-                val data = PlayerData(uuid, xp, level, premium, claimedTiers, claimedPremiumTiers, questProgress, cycle, activeQuests)
+                val data = PlayerData(uuid, xp, level, premium, claimedTiers, claimedPremiumTiers, questProgress, cycle, activeQuests, pendingTickets)
                 
                 val currentCycle = plugin.cycleManager.getCurrentCycle()
                 val mode = plugin.configManager.config.getString("quest-system.mode", "ROTATING")?.uppercase()
@@ -90,7 +97,7 @@ class PlayerDataManager(private val plugin: FrPass) {
                 }
                 
                 cache[uuid] = data
-                val insert = conn.prepareStatement("INSERT INTO player_data (uuid, xp, level, premium, claimed_tiers, claimed_premium_tiers, quests_progress, quest_cycle, active_quests) VALUES (?, 0, 1, 0, '', '', '', ?, ?)")
+                val insert = conn.prepareStatement("INSERT INTO player_data (uuid, xp, level, premium, claimed_tiers, claimed_premium_tiers, quests_progress, quest_cycle, active_quests, pending_tickets) VALUES (?, 0, 1, 0, '', '', '', ?, ?, 0)")
                 insert.setString(1, uuid.toString())
                 insert.setInt(2, data.questCycle)
                 insert.setString(3, data.activeQuests.joinToString(","))
@@ -104,9 +111,9 @@ class PlayerDataManager(private val plugin: FrPass) {
 
     fun savePlayer(uuid: UUID) {
         val data = cache[uuid] ?: return
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
-            val conn = plugin.databaseManager.getConnection() ?: return@Runnable
-            val stmt = conn.prepareStatement("UPDATE player_data SET xp = ?, level = ?, premium = ?, claimed_tiers = ?, claimed_premium_tiers = ?, quests_progress = ?, quest_cycle = ?, active_quests = ? WHERE uuid = ?")
+        plugin.foliaLib.impl.runAsync(Consumer { task ->
+            val conn = plugin.databaseManager.getConnection() ?: return@Consumer
+            val stmt = conn.prepareStatement("UPDATE player_data SET xp = ?, level = ?, premium = ?, claimed_tiers = ?, claimed_premium_tiers = ?, quests_progress = ?, quest_cycle = ?, active_quests = ?, pending_tickets = ? WHERE uuid = ?")
             stmt.setInt(1, data.xp)
             stmt.setInt(2, data.level)
             stmt.setBoolean(3, data.premium)
@@ -116,7 +123,8 @@ class PlayerDataManager(private val plugin: FrPass) {
             stmt.setString(6, qpStr)
             stmt.setInt(7, data.questCycle)
             stmt.setString(8, data.activeQuests.joinToString(","))
-            stmt.setString(9, uuid.toString())
+            stmt.setInt(9, data.pendingTickets)
+            stmt.setString(10, uuid.toString())
             stmt.executeUpdate()
             stmt.close()
         })
