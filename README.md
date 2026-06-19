@@ -9,6 +9,8 @@
 [![Folia](https://img.shields.io/badge/Folia-Support-4CAF50.svg?style=for-the-badge)](https://papermc.io)
 [![PacketEvents](https://img.shields.io/badge/Powered_by-PacketEvents-ff69b4.svg?style=for-the-badge)](https://github.com/retrooper/packetevents)
 
+[![Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/compact/available/modrinth_vector.svg)](https://modrinth.com/plugin/frpass)
+
 <br>
 
 FrPass is designed to give your players the best Battlepass experience without causing any server lag. It uses **PacketEvents** to handle all GUI interactions, making it incredibly fast and completely safe from item duplication bugs.
