@@ -6,16 +6,17 @@ import com.github.retrooper.packetevents.event.PacketReceiveEvent
 import com.github.retrooper.packetevents.protocol.packettype.PacketType
 import org.bukkit.entity.Player
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class MenuPacketListener(private val plugin: FrPass) : PacketListener {
     
-    private val lastClick = mutableMapOf<UUID, Long>()
+    private val lastClick = ConcurrentHashMap<UUID, Long>()
 
     override fun onPacketReceive(event: PacketReceiveEvent) {
         if (event.packetType == PacketType.Play.Client.CLICK_WINDOW) {
             val player = event.getPlayer<Player>() ?: return
             
-            // Sync context is safer but packet is async. We just check basic maps.
+            // PacketEvents fires asynchronously, so we use ConcurrentHashMap to ensure thread safety
             if (plugin.menuManager.isPluginMenu(player)) {
                 val now = System.currentTimeMillis()
                 val last = lastClick[player.uniqueId] ?: 0L
