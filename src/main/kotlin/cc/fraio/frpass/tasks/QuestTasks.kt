@@ -15,7 +15,7 @@ class QuestTasks(private val plugin: FrPass) {
 
     fun startTasks() {
         // Walk Task (Runs every 1 second)
-        plugin.foliaLib.impl.runTimerAsync(Consumer { task ->
+        plugin.foliaLib.impl.runTimer(Consumer { task ->
             for (player in Bukkit.getOnlinePlayers()) {
                 val current = player.location
                 val last = lastLocations[player.uniqueId]
@@ -40,7 +40,7 @@ class QuestTasks(private val plugin: FrPass) {
         }, 1L, 1L, TimeUnit.SECONDS)
 
         // Playtime Task (Runs every 1 minute)
-        plugin.foliaLib.impl.runTimerAsync(Consumer { task ->
+        plugin.foliaLib.impl.runTimer(Consumer { task ->
             for (player in Bukkit.getOnlinePlayers()) {
                 plugin.questManager.handleProgress(player, QuestType.PLAYTIME, null, 1)
             }
