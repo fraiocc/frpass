@@ -16,9 +16,13 @@ class QuestManager(private val plugin: FrPass) {
         val folder = File(plugin.dataFolder, "core/quests")
         if (!folder.exists()) {
             folder.mkdirs()
-            plugin.saveResource("core/quests/example.yml", false)
         }
-        
+        val autoGenerate = plugin.configManager.config.getBoolean("settings.generate-default-files", true)
+        val ymlFiles = folder.listFiles()?.filter { it.extension == "yml" } ?: emptyList()
+        if (ymlFiles.isEmpty() && autoGenerate) {
+            plugin.saveResource("core/quests/example.yml", true)
+        }
+
         folder.listFiles()?.filter { it.extension == "yml" }?.forEach { file ->
             val config = YamlConfiguration.loadConfiguration(file)
             val section = config.getConfigurationSection("quests") ?: return@forEach

@@ -14,13 +14,46 @@ import java.io.File
 class MenuManager(private val plugin: FrPass) {
     enum class MenuType { MAIN, QUESTS, PASS }
     private val openMenus = mutableMapOf<Player, Pair<MenuType, Int>>()
+
+    init {
+        saveDefaultMenus()
+    }
+
+    private fun saveDefaultMenus() {
+        val autoGenerate = plugin.configManager.config.getBoolean("settings.generate-default-files", true)
+        if (!autoGenerate) return
+
+        listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml").forEach { fileName ->
+            val file = File(plugin.dataFolder, "menus/$fileName")
+            if (!file.exists()) {
+                file.parentFile.mkdirs()
+                plugin.saveResource("menus/$fileName", false)
+            }
+        }
+    }
     
     fun getOpenMenu(player: Player): Pair<MenuType, Int>? {
         return openMenus[player]
     }
 
+    fun isPluginMenu(player: Player): Boolean {
+        return openMenus.containsKey(player)
+    }
+
     fun removeOpenMenu(player: Player) {
         openMenus.remove(player)
+    }
+
+    fun refreshOpenMenus() {
+        openMenus.toMap().forEach { (player, pair) ->
+            if (player.isOnline) {
+                when (pair.first) {
+                    MenuType.MAIN -> openMainMenu(player)
+                    MenuType.QUESTS -> openQuestsMenu(player, pair.second)
+                    MenuType.PASS -> openPassMenu(player, pair.second)
+                }
+            }
+        }
     }
 
     fun openMainMenu(player: Player) {
@@ -60,6 +93,18 @@ class MenuManager(private val plugin: FrPass) {
         }
         player.openInventory(inventory as Inventory)
         openMenus[player] = Pair(MenuType.MAIN, 1)
+    }
+
+    private val activeRerolls = mutableMapOf<Player, MutableSet<String>>()
+
+    fun getRerollSelection(player: Player): MutableSet<String>? = activeRerolls[player]
+
+    fun startRerollSession(player: Player) {
+        activeRerolls[player] = mutableSetOf()
+    }
+
+    fun stopRerollSession(player: Player) {
+        activeRerolls.remove(player)
     }
 
     fun openQuestsMenu(player: Player, page: Int = 1) {
@@ -106,17 +151,83 @@ class MenuManager(private val plugin: FrPass) {
                 }
             }
         }
+
+        val rerollEnabled = plugin.configManager.config.getBoolean("reroll.enabled", true)
+        var rerollSlot = -1
+        if (rerollEnabled) {
+            val reqPerm = plugin.configManager.config.getBoolean("reroll.require-permission", false)
+            val perm = plugin.configManager.config.getString("reroll.permission", "frpass.reroll") ?: "frpass.reroll"
+            if (!reqPerm || player.hasPermission(perm)) {
+                val configuredSlot = plugin.configManager.config.getInt("reroll.slot", -1)
+                val isRerollActive = activeRerolls.containsKey(player)
+                val selectedQuests = activeRerolls[player] ?: mutableSetOf()
+                val limit = plugin.configManager.config.getInt("reroll.limit", 3)
+
+                val matStr = plugin.configManager.config.getString("reroll.button.material", "SUNFLOWER") ?: "SUNFLOWER"
+                val mat = Material.matchMaterial(matStr) ?: Material.SUNFLOWER
+                val bName = plugin.configManager.config.getString("reroll.button.name", "&e&lQuest Reroll") ?: "&e&lQuest Reroll"
+                val rawLore = if (isRerollActive) {
+                    plugin.configManager.config.getStringList("reroll.button.lore-mode-active")
+                } else {
+                    plugin.configManager.config.getStringList("reroll.button.lore-normal")
+                }
+
+                val formattedLore = rawLore.map { line ->
+                    line.replace("%limit%", limit.toString())
+                        .replace("%selected%", selectedQuests.size.toString())
+                }
+
+                val builder = ItemBuilder(mat)
+                    .setName(bName, player)
+                    .setLore(formattedLore, player)
+
+                if (isRerollActive) {
+                    builder.setGlow(true)
+                }
+
+                val rerollItem = builder.build()
+
+                if (configuredSlot in 0 until size) {
+                    rerollSlot = configuredSlot
+                } else {
+                    val bottomRowMiddle = size - 5
+                    val bottomRowRight = size - 1
+                    val bottomRowLeft = size - 9
+                    
+                    if (inventory.getItem(bottomRowMiddle) == null) {
+                        rerollSlot = bottomRowMiddle
+                    } else if (inventory.getItem(bottomRowRight) == null) {
+                        rerollSlot = bottomRowRight
+                    } else if (inventory.getItem(bottomRowLeft) == null) {
+                        rerollSlot = bottomRowLeft
+                    } else {
+                        val bottomStart = size - 9
+                        val emptySlot = (bottomStart until size).firstOrNull { inventory.getItem(it) == null }
+                        rerollSlot = emptySlot ?: (size - 6)
+                    }
+                }
+
+                inventory.setItem(rerollSlot, rerollItem)
+            }
+        }
         
         val startIndex = (page - 1) * questSlots.size
         val endIndex = Math.min(startIndex + questSlots.size, activeQuests.size)
         
+        val isRerollSessionActive = activeRerolls.containsKey(player)
+        val selectedSet = activeRerolls[player] ?: mutableSetOf()
+
         var slotIndex = 0
         for (i in startIndex until endIndex) {
             val quest = activeQuests[i]
             val progress = data.questProgress[quest.id] ?: 0
             val isCompleted = progress >= quest.requiredAmount
+            val isSelected = selectedSet.contains(quest.id)
             
-            val mat = if (isCompleted) Material.MINECART else Material.PAPER
+            val customMatStr = plugin.configManager.config.getString("core.quests.${quest.id}.material")
+                ?: if (isCompleted) "MINECART" else "PAPER"
+            val mat = Material.matchMaterial(customMatStr) ?: if (isCompleted) Material.MINECART else Material.PAPER
+            
             val qName = plugin.langManager.getMessage(player, "gui.quest-item.name", "%quest%" to (quest.displayName ?: quest.id))
             val qLore = mutableListOf(
                 plugin.langManager.getMessage(player, "gui.quest-item.lore-type", "%type%" to quest.type.name),
@@ -124,9 +235,21 @@ class MenuManager(private val plugin: FrPass) {
                 plugin.langManager.getMessage(player, "gui.quest-item.lore-reward", "%xp%" to quest.rewardXp.toString())
             )
             if (isCompleted) qLore.add(plugin.langManager.getMessage(player, "gui.quest-item.lore-completed"))
+
+            if (isRerollSessionActive) {
+                if (isSelected) {
+                    qLore.add(plugin.langManager.getMessage(player, "gui.quest-item.lore-reroll-selected"))
+                } else {
+                    qLore.add(plugin.langManager.getMessage(player, "gui.quest-item.lore-reroll-unselected"))
+                }
+            }
             
-            val item = ItemBuilder(mat).setName(qName, player).setLore(qLore, player).build()
-            inventory.setItem(questSlots[slotIndex], item)
+            val builder = ItemBuilder(mat).setName(qName, player).setLore(qLore, player)
+            if (isSelected) {
+                builder.setGlow(true)
+            }
+
+            inventory.setItem(questSlots[slotIndex], builder.build())
             slotIndex++
         }
         
@@ -249,9 +372,5 @@ class MenuManager(private val plugin: FrPass) {
         
         player.openInventory(inventory as Inventory)
         openMenus[player] = Pair(MenuType.PASS, page)
-    }
-
-    fun isPluginMenu(player: Player): Boolean {
-        return openMenus.containsKey(player)
     }
 }

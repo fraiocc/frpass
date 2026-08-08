@@ -131,6 +131,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
         langManager.load()
         tierManager.loadAll()
         questManager.loadAll()
+        menuManager.refreshOpenMenus()
     }
 
     override fun onDisable() {

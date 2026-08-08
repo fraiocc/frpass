@@ -28,7 +28,7 @@ Submit an issue with the **[Feature Request]** tag and explain:
 If you want to get your hands dirty and write some Kotlin, follow these steps:
 
 1. **Fork the repository** on GitHub.
-2. **Clone your fork** locally: `git clone https://github.com/your-username/FrPass.git`
+2. **Clone your fork** locally: `git clone https://github.com/fraiocc/FrPass.git`
 3. **Create a new branch** for your feature or bugfix: `git checkout -b feature/my-awesome-feature`
 4. **Make your changes**. Please try to follow the existing Kotlin coding style and keep things tidy.
 5. **Test your changes** on a local Minecraft server.

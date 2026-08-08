@@ -14,6 +14,21 @@ messages:
   ticket-dequeued: "%prefix%&aYour inventory had space! &e%amount%x Premium Tickets &awere given to you from the queue!"
   already-premium: "%prefix%&cYou already have the Premium Battlepass!"
   ticket-used: "%prefix%&a&lSUCCESS! &eYou have unlocked the Premium Battlepass!"
+  gift-disabled: "%prefix%&cThe gifting feature is currently disabled!"
+  gift-no-permission: "%prefix%&cYou do not have permission to gift Premium Battlepass!"
+  gift-not-premium: "%prefix%&cYou must have the Premium Battlepass yourself to gift it!"
+  gift-target-already-premium: "%prefix%&e%player% &calready has the Premium Battlepass!"
+  gift-not-enough-money: "%prefix%&cYou need &e$%amount% &cto gift the Premium Battlepass!"
+  gift-not-enough-xp: "%prefix%&cYou need &e%amount% Pass XP &cto gift the Premium Battlepass!"
+  gift-not-enough-level: "%prefix%&cYou must be at least Pass Level &e%level% &cto gift the Premium Battlepass!"
+  gift-cannot-gift-self: "%prefix%&cYou cannot gift the Premium Battlepass to yourself!"
+  gift-sent: "%prefix%&aYou successfully gifted the Premium Battlepass to &e%player%&a!"
+  gift-received: "%prefix%&a&lGIFT RECEIVED! &e%player% &agifted you the &ePremium Battlepass&a!"
+  reroll-disabled: "%prefix%&cQuest reroll feature is currently disabled!"
+  reroll-no-permission: "%prefix%&cYou do not have permission to reroll quests!"
+  reroll-limit-reached: "%prefix%&cYou cannot select more than %limit% quests to reroll!"
+  reroll-success: "%prefix%&aSuccessfully rerolled %count% quest(s)!"
+  reroll-cancelled: "%prefix%&cQuest reroll selection cancelled."
 
 gui:
   quest-item:
@@ -22,6 +37,8 @@ gui:
     lore-progress: "&7Progress: &f%progress% / %required%"
     lore-reward: "&7Reward: &a%xp% XP"
     lore-completed: "&a&lCOMPLETED!"
+    lore-reroll-selected: "&a&lSELECTED FOR REROLL"
+    lore-reroll-unselected: "&eClick to select for reroll."
   tier-item:
     name: "&aTier %tier%"
     lore-xp: "&7Required XP: &f%xp%"

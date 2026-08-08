@@ -19,3 +19,4 @@ commands:
 
 libraries:
   - "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
+  - "com.zaxxer:HikariCP:5.1.0"

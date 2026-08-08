@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "cc.fraio"
-version = "0.2.2"
+version = "0.3.0"
 
 repositories {
     mavenCentral()
@@ -20,6 +20,7 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.github.retrooper:packetevents-spigot:2.12.2")
     implementation("com.github.TechnicallyCoded:FoliaLib:0.4.3")
+    compileOnly("com.zaxxer:HikariCP:5.1.0")
 }
 
 val targetJavaVersion = 21

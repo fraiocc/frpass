@@ -38,13 +38,93 @@ class InventoryListener(private val plugin: FrPass) : Listener {
                     val backSlots = config.getIntegerList("menu.items.back_button.slots")
                     val nextSlots = config.getIntegerList("menu.items.next_page.slots")
                     val prevSlots = config.getIntegerList("menu.items.prev_page.slots")
-                    
+                    val questSlots = config.getIntegerList("menu.quest-slots")
+
+                    val rerollEnabled = plugin.configManager.config.getBoolean("reroll.enabled", true)
+                    var rerollSlot = plugin.configManager.config.getInt("reroll.slot", -1)
+                    if (rerollSlot !in 0 until event.inventory.size) {
+                        rerollSlot = 49
+                    }
+
+                    val isRerollActive = plugin.menuManager.getRerollSelection(player) != null
+
+                    if (slot == rerollSlot && rerollEnabled) {
+                        val reqPerm = plugin.configManager.config.getBoolean("reroll.require-permission", false)
+                        val perm = plugin.configManager.config.getString("reroll.permission", "frpass.reroll") ?: "frpass.reroll"
+                        if (reqPerm && !player.hasPermission(perm)) {
+                            player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-no-permission"))
+                            return
+                        }
+
+                        if (!isRerollActive) {
+                            plugin.menuManager.startRerollSession(player)
+                        } else {
+                            val selection = plugin.menuManager.getRerollSelection(player) ?: mutableSetOf()
+                            if (selection.isNotEmpty()) {
+                                val data = plugin.playerDataManager.getPlayer(player.uniqueId)
+                                if (data != null) {
+                                    val allAvailableQuests = plugin.questManager.quests.keys.filter { !data.activeQuests.contains(it) }.toMutableList()
+                                    allAvailableQuests.shuffle()
+
+                                    var count = 0
+                                    for (questId in selection.toList()) {
+                                        val idx = data.activeQuests.indexOf(questId)
+                                        if (idx != -1) {
+                                            data.questProgress.remove(questId)
+                                            if (allAvailableQuests.isNotEmpty()) {
+                                                val newQuestId = allAvailableQuests.removeAt(0)
+                                                data.activeQuests[idx] = newQuestId
+                                            } else {
+                                                data.activeQuests.removeAt(idx)
+                                            }
+                                            count++
+                                        }
+                                    }
+                                    plugin.playerDataManager.savePlayer(player.uniqueId)
+                                    player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-success", "%count%" to count.toString()))
+                                }
+                            }
+                            plugin.menuManager.stopRerollSession(player)
+                        }
+                        plugin.menuManager.openQuestsMenu(player, state.second)
+                        return
+                    }
+
+                    if (questSlots.contains(slot)) {
+                        if (isRerollActive) {
+                            val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
+                            val activeQuests = data.activeQuests.mapNotNull { plugin.questManager.quests[it] }
+                            val slotIndexInPage = questSlots.indexOf(slot)
+                            val totalIndex = ((state.second - 1) * questSlots.size) + slotIndexInPage
+
+                            if (totalIndex in activeQuests.indices) {
+                                val quest = activeQuests[totalIndex]
+                                val questId = quest.id
+                                val selection = plugin.menuManager.getRerollSelection(player) ?: return
+                                val limit = plugin.configManager.config.getInt("reroll.limit", 3)
+
+                                if (selection.contains(questId)) {
+                                    selection.remove(questId)
+                                } else {
+                                    if (selection.size >= limit) {
+                                        player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-limit-reached", "%limit%" to limit.toString()))
+                                        return
+                                    }
+                                    selection.add(questId)
+                                }
+                                plugin.menuManager.openQuestsMenu(player, state.second)
+                            }
+                            return
+                        }
+                    }
+
                     if (slot in backSlots) {
+                        if (isRerollActive) plugin.menuManager.stopRerollSession(player)
                         plugin.menuManager.openMainMenu(player)
                     } else if (slot in nextSlots) {
                         plugin.menuManager.openQuestsMenu(player, state.second + 1)
                     } else if (slot in prevSlots) {
-                        plugin.menuManager.openQuestsMenu(player, state.second - 1)
+                        if (state.second > 1) plugin.menuManager.openQuestsMenu(player, state.second - 1)
                     }
                 }
                 
@@ -123,6 +203,13 @@ class InventoryListener(private val plugin: FrPass) : Listener {
     fun onClose(event: InventoryCloseEvent) {
         val player = event.player as? Player ?: return
         if (plugin.menuManager.isPluginMenu(player)) {
+            val selection = plugin.menuManager.getRerollSelection(player)
+            if (selection != null) {
+                plugin.menuManager.stopRerollSession(player)
+                if (selection.isNotEmpty()) {
+                    player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-cancelled"))
+                }
+            }
             plugin.menuManager.removeOpenMenu(player)
         }
     }

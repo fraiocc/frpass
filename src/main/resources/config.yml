@@ -1,10 +1,20 @@
 database:
-  type: SQLITE
+  type: SQLITE # Options: SQLITE, MYSQL, MARIADB, POSTGRESQL
   file: "database.db"
+  host: "localhost"
+  port: 3306 # Default ports: MySQL/MariaDB: 3306, PostgreSQL: 5432
+  database: "frpass"
+  username: "root"
+  password: ""
+  useSSL: false
+  maximumPoolSize: 10
+  minimumIdle: 2
+  connectionTimeout: 30000
 
 settings:
   lang: "en"
   prefix: "&8[&bFrPass&8] &7"
+  generate-default-files: true
   sounds:
     level-up: "ENTITY_PLAYER_LEVELUP"
     quest-complete: "ENTITY_EXPERIENCE_ORB_PICKUP"
@@ -37,3 +47,33 @@ premium-ticket:
     - "&7"
     - "&aClick to use!"
   glow: true
+
+gift:
+  enabled: true
+  permission: "frpass.gift"
+  cost:
+    money: 0.0 # Vault money required to gift
+    xp: 0      # Player Pass XP required to gift
+    level: 0   # Minimum Pass level required to gift
+  transfer-premium: true # Removes sender's premium status and transfers it to recipient
+
+reroll:
+  enabled: true
+  require-permission: false
+  permission: "frpass.reroll"
+  limit: 3 # Maximum number of quests a player can reroll in one selection session
+  slot: -1 # Slot in quests GUI (-1 for auto position: bottom row middle -> right -> left -> fallback)
+  button:
+    material: "SUNFLOWER"
+    custom-model-data: 0
+    name: "&e&lQuest Reroll"
+    lore-normal:
+      - "&7Click to enter Reroll Mode."
+      - "&7Select up to &e%limit% &7quests to replace."
+      - "&7Currently selected: &e%selected%/%limit%"
+    lore-mode-active:
+      - "&a&lREROLL MODE"
+      - "&7Select the quests you want to reroll."
+      - "&7Selected: &e%selected%/%limit%"
+      - "&eClick this button again to CONFIRM reroll."
+      - "&cPress ESC to CANCEL."
