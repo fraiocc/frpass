@@ -28,9 +28,16 @@ class LangManager(private val plugin: FrPass) {
             val defaultStream = plugin.getResource("lang/$lang.yml")
             if (defaultStream != null) {
                 val defaultConfig = YamlConfiguration.loadConfiguration(java.io.InputStreamReader(defaultStream, kotlin.text.Charsets.UTF_8))
-                langConfig.setDefaults(defaultConfig)
-                langConfig.options().copyDefaults(true)
-                langConfig.save(file)
+                var modified = false
+                for (key in defaultConfig.getKeys(true)) {
+                    if (!langConfig.contains(key)) {
+                        langConfig.set(key, defaultConfig.get(key))
+                        modified = true
+                    }
+                }
+                if (modified) {
+                    langConfig.save(file)
+                }
             }
         } else {
             plugin.logger.warning("Language file lang/$lang.yml not found!")

@@ -10,15 +10,17 @@ import org.bukkit.event.inventory.InventoryDragEvent
 
 class InventoryListener(private val plugin: FrPass) : Listener {
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler
     fun onClick(event: InventoryClickEvent) {
         val player = event.whoClicked as? Player ?: return
         val state = plugin.menuManager.getOpenMenu(player) ?: return
         
         event.isCancelled = true
+        player.updateInventory()
         
-        if (event.clickedInventory == event.view.topInventory) {
-            val slot = event.slot
+        val topInv = event.view.topInventory
+        if (event.clickedInventory == topInv || (event.rawSlot >= 0 && event.rawSlot < topInv.size)) {
+            val slot = if (event.rawSlot >= 0 && event.rawSlot < topInv.size) event.rawSlot else event.slot
             
             when (state.first) {
                 cc.fraio.frpass.menus.MenuManager.MenuType.MAIN -> {
@@ -69,19 +71,19 @@ class InventoryListener(private val plugin: FrPass) : Listener {
                                     var count = 0
                                     for (questId in selection.toList()) {
                                         val idx = data.activeQuests.indexOf(questId)
-                                        if (idx != -1) {
+                                        if (idx != -1 && allAvailableQuests.isNotEmpty()) {
                                             data.questProgress.remove(questId)
-                                            if (allAvailableQuests.isNotEmpty()) {
-                                                val newQuestId = allAvailableQuests.removeAt(0)
-                                                data.activeQuests[idx] = newQuestId
-                                            } else {
-                                                data.activeQuests.removeAt(idx)
-                                            }
+                                            val newQuestId = allAvailableQuests.removeAt(0)
+                                            data.activeQuests[idx] = newQuestId
                                             count++
                                         }
                                     }
                                     plugin.playerDataManager.savePlayer(player.uniqueId)
-                                    player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-success", "%count%" to count.toString()))
+                                    if (count == 0) {
+                                        player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-no-available-quests"))
+                                    } else {
+                                        player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-success", "%count%" to count.toString()))
+                                    }
                                 }
                             }
                             plugin.menuManager.stopRerollSession(player)
@@ -98,8 +100,7 @@ class InventoryListener(private val plugin: FrPass) : Listener {
                             val totalIndex = ((state.second - 1) * questSlots.size) + slotIndexInPage
 
                             if (totalIndex in activeQuests.indices) {
-                                val quest = activeQuests[totalIndex]
-                                val questId = quest.id
+                                val questId = activeQuests[totalIndex].id
                                 val selection = plugin.menuManager.getRerollSelection(player) ?: return
                                 val limit = plugin.configManager.config.getInt("reroll.limit", 3)
 
@@ -118,13 +119,20 @@ class InventoryListener(private val plugin: FrPass) : Listener {
                         }
                     }
 
+                    val activeQuests = plugin.playerDataManager.getPlayer(player.uniqueId)?.activeQuests?.mapNotNull { plugin.questManager.quests[it] } ?: emptyList()
+                    val totalPages = Math.ceil(activeQuests.size.toDouble() / questSlots.size).toInt().coerceAtLeast(1)
+
                     if (slot in backSlots) {
                         if (isRerollActive) plugin.menuManager.stopRerollSession(player)
                         plugin.menuManager.openMainMenu(player)
                     } else if (slot in nextSlots) {
-                        plugin.menuManager.openQuestsMenu(player, state.second + 1)
+                        if (state.second < totalPages) {
+                            plugin.menuManager.openQuestsMenu(player, state.second + 1)
+                        }
                     } else if (slot in prevSlots) {
-                        if (state.second > 1) plugin.menuManager.openQuestsMenu(player, state.second - 1)
+                        if (state.second > 1) {
+                            plugin.menuManager.openQuestsMenu(player, state.second - 1)
+                        }
                     }
                 }
                 
@@ -203,13 +211,17 @@ class InventoryListener(private val plugin: FrPass) : Listener {
     fun onClose(event: InventoryCloseEvent) {
         val player = event.player as? Player ?: return
         if (plugin.menuManager.isPluginMenu(player)) {
-            val selection = plugin.menuManager.getRerollSelection(player)
-            if (selection != null) {
-                plugin.menuManager.stopRerollSession(player)
-                if (selection.isNotEmpty()) {
-                    player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-cancelled"))
+            plugin.foliaLib.impl.runLater(Runnable {
+                if (!plugin.menuManager.isPluginMenu(player)) {
+                    val selection = plugin.menuManager.getRerollSelection(player)
+                    if (selection != null) {
+                        plugin.menuManager.stopRerollSession(player)
+                        if (selection.isNotEmpty()) {
+                            player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-cancelled"))
+                        }
+                    }
                 }
-            }
+            }, 1L)
             plugin.menuManager.removeOpenMenu(player)
         }
     }

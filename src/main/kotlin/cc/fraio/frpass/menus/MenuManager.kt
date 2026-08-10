@@ -125,18 +125,33 @@ class MenuManager(private val plugin: FrPass) {
         val totalPages = Math.ceil(activeQuests.size.toDouble() / questSlots.size).toInt().coerceAtLeast(1)
 
         val itemsSection = config.getConfigurationSection("menu.items")
+        val bgMatStr = itemsSection?.getString("background.material", "GRAY_STAINED_GLASS_PANE") ?: "GRAY_STAINED_GLASS_PANE"
+        val bgMat = Material.matchMaterial(bgMatStr) ?: Material.GRAY_STAINED_GLASS_PANE
+        val bgItem = ItemBuilder(bgMat).setName(" ", player).build()
+
         if (itemsSection != null) {
             for (key in itemsSection.getKeys(false)) {
                 val keyName = key.lowercase()
-                if (keyName == "prev_page" && page <= 1) continue
-                if (keyName == "next_page" && page >= totalPages) continue
+                val slots = itemsSection.getIntegerList("$key.slots")
+
+                if (keyName == "prev_page" && page <= 1) {
+                    for (s in slots) {
+                        if (s in 0 until size) inventory.setItem(s, bgItem)
+                    }
+                    continue
+                }
+                if (keyName == "next_page" && page >= totalPages) {
+                    for (s in slots) {
+                        if (s in 0 until size) inventory.setItem(s, bgItem)
+                    }
+                    continue
+                }
                 
                 val materialStr = itemsSection.getString("$key.material", "STONE")!!
                 val material = Material.matchMaterial(materialStr) ?: Material.STONE
                 val name = itemsSection.getString("$key.name", "")!!
                 val lore = itemsSection.getStringList("$key.lore")
                 val modelData = itemsSection.getInt("$key.custom-model-data", 0)
-                val slots = itemsSection.getIntegerList("$key.slots")
                 
                 val item = ItemBuilder(material)
                     .setName(name, player)
@@ -190,23 +205,8 @@ class MenuManager(private val plugin: FrPass) {
                 if (configuredSlot in 0 until size) {
                     rerollSlot = configuredSlot
                 } else {
-                    val bottomRowMiddle = size - 5
-                    val bottomRowRight = size - 1
-                    val bottomRowLeft = size - 9
-                    
-                    if (inventory.getItem(bottomRowMiddle) == null) {
-                        rerollSlot = bottomRowMiddle
-                    } else if (inventory.getItem(bottomRowRight) == null) {
-                        rerollSlot = bottomRowRight
-                    } else if (inventory.getItem(bottomRowLeft) == null) {
-                        rerollSlot = bottomRowLeft
-                    } else {
-                        val bottomStart = size - 9
-                        val emptySlot = (bottomStart until size).firstOrNull { inventory.getItem(it) == null }
-                        rerollSlot = emptySlot ?: (size - 6)
-                    }
+                    rerollSlot = 49
                 }
-
                 inventory.setItem(rerollSlot, rerollItem)
             }
         }

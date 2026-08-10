@@ -27,6 +27,7 @@ messages:
   reroll-disabled: "%prefix%&cQuest reroll feature is currently disabled!"
   reroll-no-permission: "%prefix%&cYou do not have permission to reroll quests!"
   reroll-limit-reached: "%prefix%&cYou cannot select more than %limit% quests to reroll!"
+  reroll-no-available-quests: "%prefix%&cNo available replacement quests found to reroll!"
   reroll-success: "%prefix%&aSuccessfully rerolled %count% quest(s)!"
   reroll-cancelled: "%prefix%&cQuest reroll selection cancelled."
 
