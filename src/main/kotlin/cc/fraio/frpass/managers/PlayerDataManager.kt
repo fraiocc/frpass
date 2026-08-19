@@ -3,6 +3,7 @@ package cc.fraio.frpass.managers
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.data.PlayerData
 import cc.fraio.frpass.utils.ColorUtils
+import cc.fraio.frpass.utils.msg
 import org.bukkit.Bukkit
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -176,7 +177,7 @@ class PlayerDataManager(private val plugin: FrPass) {
                 }
                 
                 val prefix = plugin.configManager.config.getString("settings.prefix") ?: ""
-                player.sendMessage(plugin.langManager.getMessage(player, "messages.level-up", 
+                player.sendMessage(player.msg("messages.level-up", 
                     "%prefix%" to prefix,
                     "%tier%" to data.level.toString()
                 ))

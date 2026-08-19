@@ -1,6 +1,12 @@
 package cc.fraio.frpass.listeners
 
 import cc.fraio.frpass.FrPass
+import cc.fraio.frpass.api.events.FrPassTierClaimEvent
+import cc.fraio.frpass.data.PlayerData
+import cc.fraio.frpass.menus.MenuManager.MenuType
+import cc.fraio.frpass.utils.msg
+import org.bukkit.Bukkit
+import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -19,184 +25,197 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         player.updateInventory()
         
         val topInv = event.view.topInventory
-        if (event.clickedInventory == topInv || (event.rawSlot >= 0 && event.rawSlot < topInv.size)) {
-            val slot = if (event.rawSlot >= 0 && event.rawSlot < topInv.size) event.rawSlot else event.slot
-            
-            when (state.first) {
-                cc.fraio.frpass.menus.MenuManager.MenuType.MAIN -> {
-                    val config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(java.io.File(plugin.dataFolder, "menus/main_menu.yml"))
-                    val questsSlots = config.getIntegerList("menu.items.quests_button.slots")
-                    val passSlots = config.getIntegerList("menu.items.pass_button.slots")
-                    
-                    if (slot in questsSlots) {
-                        plugin.menuManager.openQuestsMenu(player, 1)
-                    } else if (slot in passSlots) {
-                        plugin.menuManager.openPassMenu(player, 1)
-                    }
-                }
-                
-                cc.fraio.frpass.menus.MenuManager.MenuType.QUESTS -> {
-                    val config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(java.io.File(plugin.dataFolder, "menus/quests_menu.yml"))
-                    val backSlots = config.getIntegerList("menu.items.back_button.slots")
-                    val nextSlots = config.getIntegerList("menu.items.next_page.slots")
-                    val prevSlots = config.getIntegerList("menu.items.prev_page.slots")
-                    val questSlots = config.getIntegerList("menu.quest-slots")
+        val isTopInventoryClick = event.clickedInventory == topInv || (event.rawSlot in 0 until topInv.size)
+        if (!isTopInventoryClick) return
 
-                    val rerollEnabled = plugin.configManager.config.getBoolean("reroll.enabled", true)
-                    var rerollSlot = plugin.configManager.config.getInt("reroll.slot", -1)
-                    if (rerollSlot !in 0 until event.inventory.size) {
-                        rerollSlot = 49
-                    }
+        val slot = if (event.rawSlot in 0 until topInv.size) event.rawSlot else event.slot
 
-                    val isRerollActive = plugin.menuManager.getRerollSelection(player) != null
+        when (state.first) {
+            MenuType.MAIN -> handleMainMenuClick(player, slot)
+            MenuType.QUESTS -> handleQuestsMenuClick(player, slot, state.second, topInv.size)
+            MenuType.PASS -> handlePassMenuClick(player, slot, state.second)
+        }
+    }
 
-                    if (slot == rerollSlot && rerollEnabled) {
-                        val reqPerm = plugin.configManager.config.getBoolean("reroll.require-permission", false)
-                        val perm = plugin.configManager.config.getString("reroll.permission", "frpass.reroll") ?: "frpass.reroll"
-                        if (reqPerm && !player.hasPermission(perm)) {
-                            player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-no-permission"))
-                            return
-                        }
+    private fun handleMainMenuClick(player: Player, slot: Int) {
+        val config = plugin.menuManager.getMenuConfig("main_menu.yml")
+        val questsSlots = config.getIntegerList("menu.items.quests_button.slots")
+        val passSlots = config.getIntegerList("menu.items.pass_button.slots")
 
-                        if (!isRerollActive) {
-                            plugin.menuManager.startRerollSession(player)
-                        } else {
-                            val selection = plugin.menuManager.getRerollSelection(player) ?: mutableSetOf()
-                            if (selection.isNotEmpty()) {
-                                val data = plugin.playerDataManager.getPlayer(player.uniqueId)
-                                if (data != null) {
-                                    val allAvailableQuests = plugin.questManager.quests.keys.filter { !data.activeQuests.contains(it) }.toMutableList()
-                                    allAvailableQuests.shuffle()
+        when (slot) {
+            in questsSlots -> plugin.menuManager.openQuestsMenu(player, 1)
+            in passSlots -> plugin.menuManager.openPassMenu(player, 1)
+        }
+    }
 
-                                    var count = 0
-                                    for (questId in selection.toList()) {
-                                        val idx = data.activeQuests.indexOf(questId)
-                                        if (idx != -1 && allAvailableQuests.isNotEmpty()) {
-                                            data.questProgress.remove(questId)
-                                            val newQuestId = allAvailableQuests.removeAt(0)
-                                            data.activeQuests[idx] = newQuestId
-                                            count++
-                                        }
-                                    }
-                                    plugin.playerDataManager.savePlayer(player.uniqueId)
-                                    if (count == 0) {
-                                        player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-no-available-quests"))
-                                    } else {
-                                        player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-success", "%count%" to count.toString()))
-                                    }
-                                }
-                            }
-                            plugin.menuManager.stopRerollSession(player)
-                        }
-                        plugin.menuManager.openQuestsMenu(player, state.second)
-                        return
-                    }
+    private fun handleQuestsMenuClick(player: Player, slot: Int, page: Int, inventorySize: Int) {
+        val config = plugin.menuManager.getMenuConfig("quests_menu.yml")
+        val backSlots = config.getIntegerList("menu.items.back_button.slots")
+        val nextSlots = config.getIntegerList("menu.items.next_page.slots")
+        val prevSlots = config.getIntegerList("menu.items.prev_page.slots")
+        val questSlots = config.getIntegerList("menu.quest-slots")
 
-                    if (questSlots.contains(slot)) {
-                        if (isRerollActive) {
-                            val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
-                            val activeQuests = data.activeQuests.mapNotNull { plugin.questManager.quests[it] }
-                            val slotIndexInPage = questSlots.indexOf(slot)
-                            val totalIndex = ((state.second - 1) * questSlots.size) + slotIndexInPage
+        val rerollEnabled = plugin.configManager.config.getBoolean("reroll.enabled", true)
+        val configuredRerollSlot = plugin.configManager.config.getInt("reroll.slot", -1)
+        val rerollSlot = if (configuredRerollSlot in 0 until inventorySize) configuredRerollSlot else 49
 
-                            if (totalIndex in activeQuests.indices) {
-                                val questId = activeQuests[totalIndex].id
-                                val selection = plugin.menuManager.getRerollSelection(player) ?: return
-                                val limit = plugin.configManager.config.getInt("reroll.limit", 3)
+        val isRerollActive = plugin.menuManager.getRerollSelection(player) != null
 
-                                if (selection.contains(questId)) {
-                                    selection.remove(questId)
-                                } else {
-                                    if (selection.size >= limit) {
-                                        player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-limit-reached", "%limit%" to limit.toString()))
-                                        return
-                                    }
-                                    selection.add(questId)
-                                }
-                                plugin.menuManager.openQuestsMenu(player, state.second)
-                            }
-                            return
-                        }
-                    }
+        if (slot == rerollSlot && rerollEnabled) {
+            handleRerollButtonClick(player, isRerollActive, page)
+            return
+        }
 
-                    val activeQuests = plugin.playerDataManager.getPlayer(player.uniqueId)?.activeQuests?.mapNotNull { plugin.questManager.quests[it] } ?: emptyList()
-                    val totalPages = Math.ceil(activeQuests.size.toDouble() / questSlots.size).toInt().coerceAtLeast(1)
+        if (slot in questSlots && isRerollActive) {
+            handleQuestRerollSelection(player, slot, questSlots, page)
+            return
+        }
 
-                    if (slot in backSlots) {
-                        if (isRerollActive) plugin.menuManager.stopRerollSession(player)
-                        plugin.menuManager.openMainMenu(player)
-                    } else if (slot in nextSlots) {
-                        if (state.second < totalPages) {
-                            plugin.menuManager.openQuestsMenu(player, state.second + 1)
-                        }
-                    } else if (slot in prevSlots) {
-                        if (state.second > 1) {
-                            plugin.menuManager.openQuestsMenu(player, state.second - 1)
-                        }
-                    }
-                }
-                
-                cc.fraio.frpass.menus.MenuManager.MenuType.PASS -> {
-                    val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
-                    val menuConfig = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(java.io.File(plugin.dataFolder, "menus/pass_menu.yml"))
-                    val freeSlots = menuConfig.getIntegerList("menu.free-tier-slots")
-                    val premiumSlots = menuConfig.getIntegerList("menu.premium-tier-slots")
-                    
-                    val backSlots = menuConfig.getIntegerList("menu.items.back_button.slots")
-                    val nextSlots = menuConfig.getIntegerList("menu.items.next_page.slots")
-                    val prevSlots = menuConfig.getIntegerList("menu.items.prev_page.slots")
-                    
-                    if (slot in backSlots) {
-                        plugin.menuManager.openMainMenu(player)
-                        return
-                    } else if (slot in nextSlots) {
-                        plugin.menuManager.openPassMenu(player, state.second + 1)
-                        return
-                    } else if (slot in prevSlots) {
-                        if (state.second > 1) plugin.menuManager.openPassMenu(player, state.second - 1)
-                        return
-                    }
-                    
-                    if (freeSlots.contains(slot)) {
-                        val index = freeSlots.indexOf(slot)
-                        val page = state.second
-                        val count = Math.min(freeSlots.size, premiumSlots.size)
-                        val tierLevel = ((page - 1) * count) + index + 1
-                        val tier = plugin.tierManager.getTier(tierLevel) ?: return
-                        
-                        if (data.level >= tierLevel && !data.claimedTiers.contains(tierLevel)) {
-                            data.claimedTiers.add(tierLevel)
-                            plugin.rewardManager.giveRewards(player, tier.freeRewards)
-                            val event = cc.fraio.frpass.api.events.FrPassTierClaimEvent(player, tierLevel, false)
-                            org.bukkit.Bukkit.getPluginManager().callEvent(event)
-                            val soundStr = plugin.configManager.config.getString("settings.sounds.claim-reward")
-                            if (soundStr != null && soundStr.isNotEmpty()) {
-                                try { player.playSound(player.location, org.bukkit.Sound.valueOf(soundStr), 1f, 1f) } catch (e: Exception) {}
-                            }
-                            plugin.menuManager.openPassMenu(player, page)
-                        }
-                    } else if (premiumSlots.contains(slot)) {
-                        val index = premiumSlots.indexOf(slot)
-                        val page = state.second
-                        val count = Math.min(freeSlots.size, premiumSlots.size)
-                        val tierLevel = ((page - 1) * count) + index + 1
-                        val tier = plugin.tierManager.getTier(tierLevel) ?: return
-                        
-                        if (data.level >= tierLevel && data.premium && !data.claimedPremiumTiers.contains(tierLevel)) {
-                            data.claimedPremiumTiers.add(tierLevel)
-                            plugin.rewardManager.giveRewards(player, tier.premiumRewards)
-                            val event = cc.fraio.frpass.api.events.FrPassTierClaimEvent(player, tierLevel, true)
-                            org.bukkit.Bukkit.getPluginManager().callEvent(event)
-                            val soundStr = plugin.configManager.config.getString("settings.sounds.claim-reward")
-                            if (soundStr != null && soundStr.isNotEmpty()) {
-                                try { player.playSound(player.location, org.bukkit.Sound.valueOf(soundStr), 1f, 1f) } catch (e: Exception) {}
-                            }
-                            plugin.menuManager.openPassMenu(player, page)
-                        }
-                    }
-                }
+        // Navigation
+        val activeQuests = plugin.playerDataManager.getPlayer(player.uniqueId)?.activeQuests?.mapNotNull { plugin.questManager.quests[it] } ?: emptyList()
+        val totalPages = Math.ceil(activeQuests.size.toDouble() / questSlots.size).toInt().coerceAtLeast(1)
+
+        when (slot) {
+            in backSlots -> {
+                if (isRerollActive) plugin.menuManager.stopRerollSession(player)
+                plugin.menuManager.openMainMenu(player)
+            }
+            in nextSlots -> {
+                if (page < totalPages) plugin.menuManager.openQuestsMenu(player, page + 1)
+            }
+            in prevSlots -> {
+                if (page > 1) plugin.menuManager.openQuestsMenu(player, page - 1)
             }
         }
+    }
+
+    private fun handleRerollButtonClick(player: Player, isRerollActive: Boolean, page: Int) {
+        val reqPerm = plugin.configManager.config.getBoolean("reroll.require-permission", false)
+        val perm = plugin.configManager.config.getString("reroll.permission", "frpass.reroll") ?: "frpass.reroll"
+        if (reqPerm && !player.hasPermission(perm)) {
+            player.sendMessage(player.msg("messages.reroll-no-permission"))
+            return
+        }
+
+        if (!isRerollActive) {
+            plugin.menuManager.startRerollSession(player)
+        } else {
+            executeReroll(player)
+            plugin.menuManager.stopRerollSession(player)
+        }
+        plugin.menuManager.openQuestsMenu(player, page)
+    }
+
+    private fun executeReroll(player: Player) {
+        val selection = plugin.menuManager.getRerollSelection(player) ?: return
+        if (selection.isEmpty()) return
+
+        val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
+        val allAvailableQuests = plugin.questManager.quests.keys
+            .filter { !data.activeQuests.contains(it) }
+            .toMutableList()
+            .apply { shuffle() }
+
+        var count = 0
+        for (questId in selection.toList()) {
+            val idx = data.activeQuests.indexOf(questId)
+            if (idx != -1 && allAvailableQuests.isNotEmpty()) {
+                data.questProgress.remove(questId)
+                val newQuestId = allAvailableQuests.removeAt(0)
+                data.activeQuests[idx] = newQuestId
+                count++
+            }
+        }
+        plugin.playerDataManager.savePlayer(player.uniqueId)
+
+        if (count == 0) {
+            player.sendMessage(player.msg("messages.reroll-no-available-quests"))
+        } else {
+            player.sendMessage(player.msg("messages.reroll-success", "%count%" to count.toString()))
+        }
+    }
+
+    private fun handleQuestRerollSelection(player: Player, slot: Int, questSlots: List<Int>, page: Int) {
+        val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
+        val activeQuests = data.activeQuests.mapNotNull { plugin.questManager.quests[it] }
+        val slotIndexInPage = questSlots.indexOf(slot)
+        val totalIndex = ((page - 1) * questSlots.size) + slotIndexInPage
+
+        if (totalIndex in activeQuests.indices) {
+            val questId = activeQuests[totalIndex].id
+            val selection = plugin.menuManager.getRerollSelection(player) ?: return
+            val limit = plugin.configManager.config.getInt("reroll.limit", 3)
+
+            if (selection.contains(questId)) {
+                selection.remove(questId)
+            } else {
+                if (selection.size >= limit) {
+                    player.sendMessage(player.msg("messages.reroll-limit-reached", "%limit%" to limit.toString()))
+                    return
+                }
+                selection.add(questId)
+            }
+            plugin.menuManager.openQuestsMenu(player, page)
+        }
+    }
+
+    private fun handlePassMenuClick(player: Player, slot: Int, page: Int) {
+        val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
+        val menuConfig = plugin.menuManager.getMenuConfig("pass_menu.yml")
+        
+        val freeSlots = menuConfig.getIntegerList("menu.free-tier-slots")
+        val premiumSlots = menuConfig.getIntegerList("menu.premium-tier-slots")
+        val backSlots = menuConfig.getIntegerList("menu.items.back_button.slots")
+        val nextSlots = menuConfig.getIntegerList("menu.items.next_page.slots")
+        val prevSlots = menuConfig.getIntegerList("menu.items.prev_page.slots")
+
+        when (slot) {
+            in backSlots -> plugin.menuManager.openMainMenu(player)
+            in nextSlots -> plugin.menuManager.openPassMenu(player, page + 1)
+            in prevSlots -> if (page > 1) plugin.menuManager.openPassMenu(player, page - 1)
+            in freeSlots -> claimTier(player, data, freeSlots.indexOf(slot), page, freeSlots.size, premiumSlots.size, isPremiumReward = false)
+            in premiumSlots -> claimTier(player, data, premiumSlots.indexOf(slot), page, freeSlots.size, premiumSlots.size, isPremiumReward = true)
+        }
+    }
+
+    private fun claimTier(
+        player: Player,
+        data: PlayerData,
+        slotIndex: Int,
+        page: Int,
+        freeCount: Int,
+        premiumCount: Int,
+        isPremiumReward: Boolean
+    ) {
+        val count = Math.min(freeCount, premiumCount)
+        val tierLevel = ((page - 1) * count) + slotIndex + 1
+        val tier = plugin.tierManager.getTier(tierLevel) ?: return
+
+        val alreadyClaimed = if (isPremiumReward) data.claimedPremiumTiers.contains(tierLevel) else data.claimedTiers.contains(tierLevel)
+        val canClaim = data.level >= tierLevel && (!isPremiumReward || data.premium)
+
+        if (canClaim && !alreadyClaimed) {
+            if (isPremiumReward) {
+                data.claimedPremiumTiers.add(tierLevel)
+                plugin.rewardManager.giveRewards(player, tier.premiumRewards)
+            } else {
+                data.claimedTiers.add(tierLevel)
+                plugin.rewardManager.giveRewards(player, tier.freeRewards)
+            }
+
+            Bukkit.getPluginManager().callEvent(FrPassTierClaimEvent(player, tierLevel, isPremiumReward))
+            playClaimSound(player)
+            plugin.menuManager.openPassMenu(player, page)
+        }
+    }
+
+    private fun playClaimSound(player: Player) {
+        val soundStr = plugin.configManager.config.getString("settings.sounds.claim-reward") ?: return
+        if (soundStr.isEmpty()) return
+        try {
+            val sound = Sound.valueOf(soundStr.uppercase())
+            player.playSound(player.location, sound, 1f, 1f)
+        } catch (ignored: Exception) {}
     }
 
     @EventHandler
@@ -210,19 +229,19 @@ class InventoryListener(private val plugin: FrPass) : Listener {
     @EventHandler
     fun onClose(event: InventoryCloseEvent) {
         val player = event.player as? Player ?: return
-        if (plugin.menuManager.isPluginMenu(player)) {
-            plugin.foliaLib.impl.runLater(Runnable {
-                if (!plugin.menuManager.isPluginMenu(player)) {
-                    val selection = plugin.menuManager.getRerollSelection(player)
-                    if (selection != null) {
-                        plugin.menuManager.stopRerollSession(player)
-                        if (selection.isNotEmpty()) {
-                            player.sendMessage(plugin.langManager.getMessage(player, "messages.reroll-cancelled"))
-                        }
+        if (!plugin.menuManager.isPluginMenu(player)) return
+
+        plugin.foliaLib.impl.runLater(Runnable {
+            if (!plugin.menuManager.isPluginMenu(player)) {
+                val selection = plugin.menuManager.getRerollSelection(player)
+                if (selection != null) {
+                    plugin.menuManager.stopRerollSession(player)
+                    if (selection.isNotEmpty()) {
+                        player.sendMessage(player.msg("messages.reroll-cancelled"))
                     }
                 }
-            }, 1L)
-            plugin.menuManager.removeOpenMenu(player)
-        }
+            }
+        }, 1L)
+        plugin.menuManager.removeOpenMenu(player)
     }
 }

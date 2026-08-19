@@ -29,7 +29,7 @@ class ConfigWatcher(private val plugin: FrPass) {
             registerPath(dataFolder.resolve("lang"))
             registerPath(dataFolder.resolve("menus"))
             
-            Thread({
+            plugin.foliaLib.impl.runAsync(Consumer { _ ->
                 while (isRunning.get()) {
                     val key: WatchKey
                     try {
@@ -58,6 +58,7 @@ class ConfigWatcher(private val plugin: FrPass) {
                             lastReloadTime.set(now)
                             // Run synchronously on the main server thread
                             plugin.foliaLib.impl.runNextTick(Consumer { _ ->
+                                plugin.menuManager.loadMenuConfigs()
                                 plugin.reloadAll()
                             })
                         }
@@ -67,7 +68,7 @@ class ConfigWatcher(private val plugin: FrPass) {
                         break
                     }
                 }
-            }, "FrPass-ConfigWatcher").start()
+            })
             
         } catch (e: Exception) {
             plugin.logger.warning("Could not start ConfigWatcher: ${e.message}")

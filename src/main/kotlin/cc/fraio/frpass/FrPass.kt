@@ -35,6 +35,10 @@ import java.util.UUID
 
 class FrPass : JavaPlugin(), FrPassAPI {
     
+    companion object {
+        lateinit var instance: FrPass private set
+    }
+    
     lateinit var configManager: ConfigManager private set
     lateinit var langManager: LangManager private set
     lateinit var databaseManager: DatabaseManager private set
@@ -59,6 +63,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
     }
 
     override fun onEnable() {
+        instance = this
         foliaLib = FoliaLib(this)
         PacketEvents.getAPI().init()
         

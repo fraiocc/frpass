@@ -1,27 +1,27 @@
 tiers:
   '1':
     required-xp: 100
-    display:
-      material: EMERALD
-      name: "&aTier 1 &7(Premium Only)"
-      lore:
-        - "&7Required XP: &f100"
-        - "&7Reward: &a5000 Coins"
+    free-rewards:
+      - "[MESSAGE] &aYou claimed Tier 1 free reward!"
+      - "[XP] 250"
     premium-rewards:
-      - "[MESSAGE] &eYou reached Premium Tier 1!"
+      - "[MESSAGE] &eYou claimed Premium Tier 1!"
       - "[MONEY] 5000"
-      - "[COMMAND] give %player% diamond 5"
+      - "[ITEM] DIAMOND:5 name:\"&bStarter Diamonds\" lore:\"&7Essential for mining|&a+5 Diamonds\" custom-model-data:101"
+
   '2':
     required-xp: 250
-    display:
-      material: DIAMOND
-      name: "&bTier 2"
-      lore:
-        - "&7Required XP: &f250"
-        - "&7Free Reward: &a500 XP"
-        - "&ePremium Reward: &a1500 XP"
     free-rewards:
       - "[XP] 500"
     premium-rewards:
       - "[XP] 1500"
-      - "[ITEM] EMERALD:10"
+      - "[ITEM] EMERALD:10 name:\"&aEmerald Stack\" lore:\"&7Use at villagers\""
+      - "[COMMAND] give %player% golden_apple 2"
+
+  '3':
+    required-xp: 500
+    free-rewards:
+      - "[MONEY] 1000"
+    premium-rewards:
+      - "[ITEM] NETHERITE_INGOT:1 name:\"&5Ancient Ingot\" lore:\"&7Rare crafting material|&eLegendary Item\" custom-model-data:500"
+      - "[COMMAND] eco give %player% 10000"

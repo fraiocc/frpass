@@ -2,6 +2,7 @@ package cc.fraio.frpass.commands
 
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.hooks.VaultHook
+import cc.fraio.frpass.utils.msg
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
@@ -13,7 +14,7 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (sender !is Player) {
-            sender.sendMessage(plugin.langManager.getMessage(null, "messages.only-players"))
+            sender.sendMessage(sender.msg("messages.only-players"))
             return true
         }
 
@@ -30,60 +31,59 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         val config = plugin.configManager.config
         
         if (!config.getBoolean("gift.enabled", true)) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-disabled"))
+            sender.sendMessage(sender.msg("messages.gift-disabled"))
             return
         }
 
         val perm = config.getString("gift.permission", "frpass.gift") ?: "frpass.gift"
         if (!sender.hasPermission(perm)) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-no-permission"))
+            sender.sendMessage(sender.msg("messages.gift-no-permission"))
             return
         }
 
         if (args.size < 2) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.admin-usage"))
-            sender.sendMessage("§cUsage: /frpass gift <player>")
+            sender.sendMessage(sender.msg("messages.gift-usage"))
             return
         }
 
         val targetName = args[1]
         val target = Bukkit.getPlayer(targetName)
         if (target == null || !target.isOnline) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.player-not-found"))
+            sender.sendMessage(sender.msg("messages.player-not-found"))
             return
         }
 
         if (target.uniqueId == sender.uniqueId) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-cannot-gift-self"))
+            sender.sendMessage(sender.msg("messages.gift-cannot-gift-self"))
             return
         }
 
         val senderData = plugin.playerDataManager.getPlayer(sender.uniqueId)
         if (senderData == null || !senderData.premium) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-not-premium"))
+            sender.sendMessage(sender.msg("messages.gift-not-premium"))
             return
         }
 
         val targetData = plugin.playerDataManager.getPlayer(target.uniqueId)
         if (targetData == null) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.player-not-found"))
+            sender.sendMessage(sender.msg("messages.player-not-found"))
             return
         }
 
         if (targetData.premium) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-target-already-premium", "%player%" to target.name))
+            sender.sendMessage(sender.msg("messages.gift-target-already-premium", "%player%" to target.name))
             return
         }
 
         val minLevel = config.getInt("gift.cost.level", 0)
         if (senderData.level < minLevel) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-not-enough-level", "%level%" to minLevel.toString()))
+            sender.sendMessage(sender.msg("messages.gift-not-enough-level", "%level%" to minLevel.toString()))
             return
         }
 
         val requiredXp = config.getInt("gift.cost.xp", 0)
         if (senderData.xp < requiredXp) {
-            sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-not-enough-xp", "%amount%" to requiredXp.toString()))
+            sender.sendMessage(sender.msg("messages.gift-not-enough-xp", "%amount%" to requiredXp.toString()))
             return
         }
 
@@ -92,7 +92,7 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
             val eco = VaultHook.economy
             if (eco != null) {
                 if (!eco.has(sender, requiredMoney)) {
-                    sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-not-enough-money", "%amount%" to requiredMoney.toString()))
+                    sender.sendMessage(sender.msg("messages.gift-not-enough-money", "%amount%" to requiredMoney.toString()))
                     return
                 }
             }
@@ -114,8 +114,8 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         targetData.premium = true
         plugin.playerDataManager.savePlayer(target.uniqueId)
 
-        sender.sendMessage(plugin.langManager.getMessage(sender, "messages.gift-sent", "%player%" to target.name))
-        target.sendMessage(plugin.langManager.getMessage(target, "messages.gift-received", "%player%" to sender.name))
+        sender.sendMessage(sender.msg("messages.gift-sent", "%player%" to target.name))
+        target.sendMessage(target.msg("messages.gift-received", "%player%" to sender.name))
     }
 
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String> {

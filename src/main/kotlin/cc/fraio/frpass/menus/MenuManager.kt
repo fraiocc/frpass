@@ -3,6 +3,7 @@ package cc.fraio.frpass.menus
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.ItemBuilder
+import cc.fraio.frpass.utils.msg
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -15,8 +16,11 @@ class MenuManager(private val plugin: FrPass) {
     enum class MenuType { MAIN, QUESTS, PASS }
     private val openMenus = mutableMapOf<Player, Pair<MenuType, Int>>()
 
+    private val configCache = mutableMapOf<String, YamlConfiguration>()
+
     init {
         saveDefaultMenus()
+        loadMenuConfigs()
     }
 
     private fun saveDefaultMenus() {
@@ -31,7 +35,31 @@ class MenuManager(private val plugin: FrPass) {
             }
         }
     }
-    
+
+    fun loadMenuConfigs() {
+        configCache.clear()
+        val menuNames = listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml")
+        for (name in menuNames) {
+            val file = File(plugin.dataFolder, "menus/$name")
+            if (file.exists()) {
+                configCache[name] = YamlConfiguration.loadConfiguration(file)
+            }
+        }
+    }
+
+    fun getMenuConfig(name: String): YamlConfiguration {
+        return configCache[name] ?: run {
+            val file = File(plugin.dataFolder, "menus/$name")
+            if (!file.exists() && plugin.configManager.config.getBoolean("settings.generate-default-files", true)) {
+                file.parentFile.mkdirs()
+                plugin.saveResource("menus/$name", false)
+            }
+            val config = YamlConfiguration.loadConfiguration(file)
+            configCache[name] = config
+            config
+        }
+    }
+
     fun getOpenMenu(player: Player): Pair<MenuType, Int>? {
         return openMenus[player]
     }
@@ -57,12 +85,7 @@ class MenuManager(private val plugin: FrPass) {
     }
 
     fun openMainMenu(player: Player) {
-        val file = File(plugin.dataFolder, "menus/main_menu.yml")
-        if (!file.exists()) {
-            file.parentFile.mkdirs()
-            plugin.saveResource("menus/main_menu.yml", false)
-        }
-        val config = YamlConfiguration.loadConfiguration(file)
+        val config = getMenuConfig("main_menu.yml")
         val title = ColorUtils.colorize(player, config.getString("menu.title", "&8Main Menu")!!)
         val size = config.getInt("menu.size", 27)
         
@@ -108,12 +131,7 @@ class MenuManager(private val plugin: FrPass) {
     }
 
     fun openQuestsMenu(player: Player, page: Int = 1) {
-        val file = File(plugin.dataFolder, "menus/quests_menu.yml")
-        if (!file.exists()) {
-            file.parentFile.mkdirs()
-            plugin.saveResource("menus/quests_menu.yml", false)
-        }
-        val config = YamlConfiguration.loadConfiguration(file)
+        val config = getMenuConfig("quests_menu.yml")
         val title = ColorUtils.colorize(player, config.getString("menu.title", "&8Quests Menu (Page %page%)")!!.replace("%page%", page.toString()))
         val size = config.getInt("menu.size", 54)
         
@@ -228,19 +246,19 @@ class MenuManager(private val plugin: FrPass) {
                 ?: if (isCompleted) "MINECART" else "PAPER"
             val mat = Material.matchMaterial(customMatStr) ?: if (isCompleted) Material.MINECART else Material.PAPER
             
-            val qName = plugin.langManager.getMessage(player, "gui.quest-item.name", "%quest%" to (quest.displayName ?: quest.id))
+            val qName = player.msg("gui.quest-item.name", "%quest%" to (quest.displayName ?: quest.id))
             val qLore = mutableListOf(
-                plugin.langManager.getMessage(player, "gui.quest-item.lore-type", "%type%" to quest.type.name),
-                plugin.langManager.getMessage(player, "gui.quest-item.lore-progress", "%progress%" to progress.toString(), "%required%" to quest.requiredAmount.toString()),
-                plugin.langManager.getMessage(player, "gui.quest-item.lore-reward", "%xp%" to quest.rewardXp.toString())
+                player.msg("gui.quest-item.lore-type", "%type%" to quest.type.name),
+                player.msg("gui.quest-item.lore-progress", "%progress%" to progress.toString(), "%required%" to quest.requiredAmount.toString()),
+                player.msg("gui.quest-item.lore-reward", "%xp%" to quest.rewardXp.toString())
             )
-            if (isCompleted) qLore.add(plugin.langManager.getMessage(player, "gui.quest-item.lore-completed"))
+            if (isCompleted) qLore.add(player.msg("gui.quest-item.lore-completed"))
 
             if (isRerollSessionActive) {
                 if (isSelected) {
-                    qLore.add(plugin.langManager.getMessage(player, "gui.quest-item.lore-reroll-selected"))
+                    qLore.add(player.msg("gui.quest-item.lore-reroll-selected"))
                 } else {
-                    qLore.add(plugin.langManager.getMessage(player, "gui.quest-item.lore-reroll-unselected"))
+                    qLore.add(player.msg("gui.quest-item.lore-reroll-unselected"))
                 }
             }
             
@@ -258,7 +276,7 @@ class MenuManager(private val plugin: FrPass) {
     }
 
     fun openPassMenu(player: Player, page: Int = 1) {
-        val menuConfig = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(java.io.File(plugin.dataFolder, "menus/pass_menu.yml"))
+        val menuConfig = getMenuConfig("pass_menu.yml")
         val titleRaw = menuConfig.getString("menu.title", "&8Battlepass (Page %page%)")!!.replace("%page%", page.toString())
         val title = ColorUtils.colorize(player, titleRaw)
         val size = menuConfig.getInt("menu.size", 27)
@@ -311,7 +329,7 @@ class MenuManager(private val plugin: FrPass) {
                     val defaultModelDataLocked = plugin.configManager.config.getInt("tier-icons.locked.custom-model-data", 0)
 
                     val matStr = if (tier.customIcon == null || tier.customIcon.equals("default", true)) defaultMatStrLocked else tier.customIcon
-                    val name = tier.customName ?: plugin.langManager.getMessage(player, "gui.tier-item.name", "%tier%" to tier.level.toString())
+                    val name = tier.customName ?: player.msg("gui.tier-item.name", "%tier%" to tier.level.toString())
                     
                     // Render Free Slot
                     run {
@@ -320,18 +338,18 @@ class MenuManager(private val plugin: FrPass) {
                         val mat = Material.matchMaterial(matStrSlot) ?: Material.matchMaterial(defaultMatStrLocked) ?: Material.MINECART
                         val modelData = if (isFreeClaimed) defaultModelDataClaimed else if (isUnlocked) defaultModelDataUnlocked else (tier.customModelData ?: defaultModelDataLocked)
                         
-                        val statusText = if (isFreeClaimed) plugin.langManager.getMessage(player, "gui.tier-item.status-claimed")
-                        else if (isUnlocked) plugin.langManager.getMessage(player, "gui.tier-item.status-unlocked")
-                        else plugin.langManager.getMessage(player, "gui.tier-item.status-locked")
+                        val statusText = if (isFreeClaimed) player.msg("gui.tier-item.status-claimed")
+                        else if (isUnlocked) player.msg("gui.tier-item.status-unlocked")
+                        else player.msg("gui.tier-item.status-locked")
                         
                         val lore = mutableListOf<String>()
                         if (tier.customLore != null) {
                             lore.addAll(tier.customLore)
                         } else {
-                            lore.add(plugin.langManager.getMessage(player, "gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
+                            lore.add(player.msg("gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
                         }
                         lore.add("")
-                        lore.add(plugin.langManager.getMessage(player, "gui.tier-item.status-prefix") + statusText)
+                        lore.add(player.msg("gui.tier-item.status-prefix") + statusText)
                         
                         val item = ItemBuilder(mat).setName("$name &8(Free)", player).setLore(lore, player).setCustomModelData(modelData).build()
                         if (slot in 0 until size) inventory.setItem(slot, item)
@@ -345,22 +363,22 @@ class MenuManager(private val plugin: FrPass) {
                         val mat = Material.matchMaterial(matStrSlot) ?: Material.matchMaterial(defaultMatStrLocked) ?: Material.MINECART
                         val modelData = if (isPremiumClaimed) defaultModelDataClaimed else if (isUnlocked && hasPremium) defaultModelDataUnlocked else (tier.customModelData ?: defaultModelDataLocked)
                         
-                        val statusText = if (isPremiumClaimed) plugin.langManager.getMessage(player, "gui.tier-item.status-claimed")
-                        else if (isUnlocked && hasPremium) plugin.langManager.getMessage(player, "gui.tier-item.status-unlocked")
-                        else plugin.langManager.getMessage(player, "gui.tier-item.status-locked")
+                        val statusText = if (isPremiumClaimed) player.msg("gui.tier-item.status-claimed")
+                        else if (isUnlocked && hasPremium) player.msg("gui.tier-item.status-unlocked")
+                        else player.msg("gui.tier-item.status-locked")
                         
                         val lore = mutableListOf<String>()
                         if (tier.customLore != null) {
                             lore.addAll(tier.customLore)
                         } else {
-                            lore.add(plugin.langManager.getMessage(player, "gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
+                            lore.add(player.msg("gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
                         }
                         if (!hasPremium) {
                             lore.add("")
-                            lore.add(ColorUtils.colorize(player, "&cRequires Premium!"))
+                            lore.add(player.msg("gui.tier-item.requires-premium"))
                         }
                         lore.add("")
-                        lore.add(plugin.langManager.getMessage(player, "gui.tier-item.status-prefix") + statusText)
+                        lore.add(player.msg("gui.tier-item.status-prefix") + statusText)
                         
                         val item = ItemBuilder(mat).setName("$name &e(Premium)", player).setLore(lore, player).setCustomModelData(modelData).build()
                         if (slot in 0 until size) inventory.setItem(slot, item)

@@ -1,6 +1,12 @@
+# FrPass Quest Configuration Example
+# Supported Quest Types: BREAK_BLOCK, PLACE_BLOCK, KILL_MOB, KILL_PLAYER, FISH, WALK, PLAYTIME, CRAFT, CONSUME
+# Item Reward Formats:
+# 1. Quoted with spaces: [ITEM] DIAMOND_PICKAXE:1 name:"&bMiner's Pride" lore:"&7Mines fast|&eTier 1 Pickaxe" custom-model-data:2001
+# 2. Classic with underscores: [ITEM] DIAMOND_PICKAXE:1 name:&bMiner's_Pride lore:&7Mines_fast
+
 quests:
   mine_diamonds:
-    display-name: "Break Diamonds"
+    display-name: "Diamond Miner"
     type: BREAK_BLOCK
     target: DIAMOND_ORE
     required-amount: 10
@@ -8,29 +14,31 @@ quests:
     extra-rewards:
       - "[MONEY] 1000"
       - "[MESSAGE] &aYou completed the diamond mining quest!"
-  
+      - "[ITEM] DIAMOND_PICKAXE:1 name:\"&bMiner's Pride\" lore:\"&7Mines fast|&eQuest Reward\" custom-model-data:2001"
+
   kill_zombies:
+    display-name: "Zombie Hunter"
     type: KILL_MOB
     target: ZOMBIE
     required-amount: 25
     reward-xp: 50
-    extra-rewards: []
+    extra-rewards:
+      - "[XP] 100"
+      - "[ITEM] IRON_SWORD:1 name:\"&cZombie Slayer\" lore:\"&7Deals extra damage to undead\""
 
   kill_players:
+    display-name: "Gladiator"
     type: KILL_PLAYER
     required-amount: 5
     reward-xp: 150
-    extra-rewards: []
-
-  walk_1000:
-    type: WALK
-    required-amount: 1000
-    reward-xp: 200
-    extra-rewards: []
+    extra-rewards:
+      - "[COMMAND] give %player% golden_apple 3"
 
   playtime_60:
+    display-name: "Dedicated Player"
     type: PLAYTIME
     required-amount: 60
     reward-xp: 300
     extra-rewards:
-      - "[MESSAGE] &bThanks for playing 1 hour!"
+      - "[MESSAGE] &bThanks for playing for 1 hour!"
+      - "[MONEY] 2500"

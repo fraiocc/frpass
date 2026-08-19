@@ -21,6 +21,7 @@ messages:
   gift-not-enough-money: "%prefix%&cYou need &e$%amount% &cto gift the Premium Battlepass!"
   gift-not-enough-xp: "%prefix%&cYou need &e%amount% Pass XP &cto gift the Premium Battlepass!"
   gift-not-enough-level: "%prefix%&cYou must be at least Pass Level &e%level% &cto gift the Premium Battlepass!"
+  gift-usage: "%prefix%&cUsage: /frpass gift <player>"
   gift-cannot-gift-self: "%prefix%&cYou cannot gift the Premium Battlepass to yourself!"
   gift-sent: "%prefix%&aYou successfully gifted the Premium Battlepass to &e%player%&a!"
   gift-received: "%prefix%&a&lGIFT RECEIVED! &e%player% &agifted you the &ePremium Battlepass&a!"
@@ -47,3 +48,4 @@ gui:
     status-claimed: "&aClaimed"
     status-unlocked: "&eClick to claim"
     status-locked: "&cLocked"
+    requires-premium: "&cRequires Premium!"
