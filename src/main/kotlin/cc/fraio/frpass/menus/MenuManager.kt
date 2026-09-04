@@ -198,6 +198,7 @@ class MenuManager(private val plugin: FrPass) {
 
                 val matStr = plugin.configManager.config.getString("reroll.button.material", "SUNFLOWER") ?: "SUNFLOWER"
                 val mat = Material.matchMaterial(matStr) ?: Material.SUNFLOWER
+                val modelData = plugin.configManager.config.getInt("reroll.button.custom-model-data", 0)
                 val bName = plugin.configManager.config.getString("reroll.button.name", "&e&lQuest Reroll") ?: "&e&lQuest Reroll"
                 val rawLore = if (isRerollActive) {
                     plugin.configManager.config.getStringList("reroll.button.lore-mode-active")
@@ -213,6 +214,7 @@ class MenuManager(private val plugin: FrPass) {
                 val builder = ItemBuilder(mat)
                     .setName(bName, player)
                     .setLore(formattedLore, player)
+                    .setCustomModelData(modelData)
 
                 if (isRerollActive) {
                     builder.setGlow(true)
