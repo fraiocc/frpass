@@ -21,6 +21,7 @@ import cc.fraio.frpass.menus.MenuManager
 import cc.fraio.frpass.tasks.QuestTasks
 import cc.fraio.frpass.api.FrPassAPI
 import cc.fraio.frpass.api.FrPassProvider
+import cc.fraio.frpass.editor.QuestEditorManager
 import cc.fraio.frpass.quests.QuestType
 import cc.fraio.frpass.listeners.TicketListener
 import cc.fraio.frpass.utils.ConfigWatcher
@@ -51,6 +52,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
     lateinit var cycleManager: CycleManager private set
     lateinit var updateChecker: UpdateChecker private set
     lateinit var ticketManager: TicketManager private set
+    lateinit var questEditorManager: QuestEditorManager private set
     lateinit var configWatcher: ConfigWatcher private set
     lateinit var foliaLib: FoliaLib private set
 
@@ -99,6 +101,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
         
         cycleManager = CycleManager(this)
         menuManager = MenuManager(this)
+        questEditorManager = cc.fraio.frpass.editor.QuestEditorManager(this)
         
         questTasks = QuestTasks(this)
         questTasks.startTasks()
@@ -110,6 +113,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
             registerEvents(PlayerConnectionListener(this@FrPass), this@FrPass)
             registerEvents(QuestListener(this@FrPass), this@FrPass)
             registerEvents(TicketListener(this@FrPass), this@FrPass)
+            registerEvents(cc.fraio.frpass.editor.QuestEditorListener(this@FrPass), this@FrPass)
         }
         PacketEvents.getAPI().eventManager.registerListener(MenuPacketListener(this), com.github.retrooper.packetevents.event.PacketListenerPriority.NORMAL)
         
@@ -128,6 +132,9 @@ class FrPass : JavaPlugin(), FrPassAPI {
         updateChecker = UpdateChecker(this)
         updateChecker.checkForUpdates()
         
+        val pluginId = 33981
+        org.bstats.bukkit.Metrics(this, pluginId)
+
         logger.info("FrPass enabled successfully!")
     }
 

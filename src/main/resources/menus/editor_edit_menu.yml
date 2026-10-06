@@ -1,0 +1,61 @@
+menu:
+  title_create: "&8Create Quest: %id%"
+  title_edit: "&8Edit Quest: %id%"
+  size: 54
+
+  items:
+    background:
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19, 20, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 50, 51, 52]
+      custom-model-data: 0
+
+    id:
+      material: OAK_SIGN
+      name: "&fQuest ID"
+      slot: 11
+
+    display_name:
+      material: NAME_TAG
+      name: "&bDisplay Name"
+      slot: 12
+
+    type:
+      material: PAPER
+      name: "&eQuest Type"
+      slot: 13
+
+    target:
+      material: TARGET
+      name: "&cTarget"
+      slot: 14
+
+    required_amount:
+      material: REPEATER
+      name: "&aRequired Amount"
+      slot: 15
+
+    reward_xp:
+      material: EXPERIENCE_BOTTLE
+      name: "&6Reward XP"
+      slot: 21
+
+    extra_rewards:
+      material: CHEST
+      name: "&dExtra Rewards"
+      slot: 23
+
+    back_button:
+      material: ARROW
+      name: "&cBack"
+      slot: 45
+
+    save_button:
+      material: EMERALD_BLOCK
+      name: "&a&lSave Quest"
+      slot: 49
+
+    delete_button:
+      material: REDSTONE_BLOCK
+      name: "&c&lDelete Quest"
+      slot: 53

@@ -25,15 +25,15 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         when (args[0].lowercase()) {
             "addxp" -> {
                 if (args.size < 3) {
-                    sender.sendMessage(sender.msg("messages.admin-usage"))
+                    sender.sendMessage(ColorUtils.colorize("&cUsage: /frpassadmin addxp <player> <amount>"))
                     return true
                 }
                 val target = org.bukkit.Bukkit.getPlayer(args[1])
-                val amount = args[2].toIntOrNull()
                 if (target == null) {
                     sender.sendMessage(sender.msg("messages.player-not-found"))
                     return true
                 }
+                val amount = args[2].toIntOrNull()
                 if (amount == null) {
                     sender.sendMessage(sender.msg("messages.invalid-amount"))
                     return true
@@ -43,22 +43,23 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
             }
             "setpremium" -> {
                 if (args.size < 3) {
-                    sender.sendMessage(sender.msg("messages.admin-usage"))
+                    sender.sendMessage(ColorUtils.colorize("&cUsage: /frpassadmin setpremium <player> <true|false>"))
                     return true
                 }
                 val target = org.bukkit.Bukkit.getPlayer(args[1])
-                val value = args[2].toBooleanStrictOrNull()
                 if (target == null) {
                     sender.sendMessage(sender.msg("messages.player-not-found"))
                     return true
                 }
+                val value = args[2].toBooleanStrictOrNull()
                 if (value == null) {
-                    sender.sendMessage(sender.msg("messages.admin-usage"))
+                    sender.sendMessage(ColorUtils.colorize("&cUsage: /frpassadmin setpremium <player> <true|false>"))
                     return true
                 }
                 val data = plugin.playerDataManager.getPlayer(target.uniqueId)
                 if (data != null) {
                     data.premium = value
+                    plugin.playerDataManager.savePlayer(target.uniqueId)
                     sender.sendMessage(sender.msg("messages.set-premium", "%player%" to target.name, "%state%" to value.toString()))
                 } else {
                     sender.sendMessage(sender.msg("messages.player-not-found"))
@@ -66,15 +67,15 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
             }
             "giveticket" -> {
                 if (args.size < 3) {
-                    sender.sendMessage(sender.msg("messages.admin-usage"))
+                    sender.sendMessage(ColorUtils.colorize("&cUsage: /frpassadmin giveticket <player> <amount>"))
                     return true
                 }
                 val target = org.bukkit.Bukkit.getPlayer(args[1])
-                val amount = args[2].toIntOrNull()
                 if (target == null) {
                     sender.sendMessage(sender.msg("messages.player-not-found"))
                     return true
                 }
+                val amount = args[2].toIntOrNull()
                 if (amount == null || amount <= 0) {
                     sender.sendMessage(sender.msg("messages.invalid-amount"))
                     return true
@@ -82,9 +83,15 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                 plugin.ticketManager.giveTicket(target, amount)
                 sender.sendMessage(sender.msg("messages.given-ticket", "%amount%" to amount.toString(), "%player%" to target.name))
             }
+            "editor" -> {
+                if (sender !is org.bukkit.entity.Player) {
+                    sender.sendMessage(sender.msg("messages.only-players"))
+                    return true
+                }
+                plugin.questEditorManager.openQuestListMenu(sender, 1)
+            }
             else -> {
-                val prefix = plugin.configManager.config.getString("settings.prefix", "&8[&bFrPass&8] ") ?: "&8[&bFrPass&8] "
-                sender.sendMessage(ColorUtils.colorize("$prefix&cUnknown command."))
+                sender.sendMessage(sender.msg("messages.admin-usage"))
             }
         }
         
@@ -95,7 +102,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         if (!sender.hasPermission("frpass.admin")) return emptyList()
         
         if (args.size == 1) {
-            val subCommands = listOf("addxp", "setpremium", "giveticket")
+            val subCommands = listOf("addxp", "setpremium", "giveticket", "editor")
             return subCommands.filter { it.startsWith(args[0], ignoreCase = true) }
         } else if (args.size == 2) {
             val cmd = args[0].lowercase()

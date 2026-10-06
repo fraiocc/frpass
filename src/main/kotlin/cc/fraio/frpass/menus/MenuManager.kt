@@ -27,7 +27,7 @@ class MenuManager(private val plugin: FrPass) {
         val autoGenerate = plugin.configManager.config.getBoolean("settings.generate-default-files", true)
         if (!autoGenerate) return
 
-        listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml").forEach { fileName ->
+        listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml", "editor_list_menu.yml", "editor_edit_menu.yml").forEach { fileName ->
             val file = File(plugin.dataFolder, "menus/$fileName")
             if (!file.exists()) {
                 file.parentFile.mkdirs()
@@ -38,7 +38,7 @@ class MenuManager(private val plugin: FrPass) {
 
     fun loadMenuConfigs() {
         configCache.clear()
-        val menuNames = listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml")
+        val menuNames = listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml", "editor_list_menu.yml", "editor_edit_menu.yml")
         for (name in menuNames) {
             val file = File(plugin.dataFolder, "menus/$name")
             if (file.exists()) {

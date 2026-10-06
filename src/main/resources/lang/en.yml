@@ -1,6 +1,6 @@
 messages:
   only-players: "&cThis command is only for players."
-  admin-usage: "&cUsage: /frpassadmin <addxp|setpremium|giveticket>"
+  admin-usage: "&cUsage: /frpassadmin <addxp|setpremium|giveticket|editor>"
   player-not-found: "&cPlayer not found."
   invalid-amount: "&cInvalid amount."
   added-xp: "&aAdded %amount% XP to %player%."

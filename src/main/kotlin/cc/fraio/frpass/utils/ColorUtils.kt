@@ -6,9 +6,22 @@ import org.bukkit.entity.Player
 
 object ColorUtils {
 
+    private val HEX_PATTERN = java.util.regex.Pattern.compile("&#([A-Fa-f0-9]{6})")
+
     fun colorize(player: Player?, text: String): String {
-        val papiText = PAPIHook.setPlaceholders(player, text)
-        return ChatColor.translateAlternateColorCodes('&', papiText)
+        var result = PAPIHook.setPlaceholders(player, text)
+        
+        // Hex color support: &#RRGGBB
+        val matcher = HEX_PATTERN.matcher(result)
+        val buffer = StringBuffer()
+        while (matcher.find()) {
+            val color = matcher.group(1)
+            matcher.appendReplacement(buffer, "§x§${color[0]}§${color[1]}§${color[2]}§${color[3]}§${color[4]}§${color[5]}")
+        }
+        matcher.appendTail(buffer)
+        result = buffer.toString()
+
+        return ChatColor.translateAlternateColorCodes('&', result)
     }
 
     fun colorize(text: String): String {
