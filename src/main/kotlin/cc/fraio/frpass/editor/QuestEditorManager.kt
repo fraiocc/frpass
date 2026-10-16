@@ -110,6 +110,11 @@ class QuestEditorManager(private val plugin: FrPass) {
             QuestType.CRAFT -> Material.CRAFTING_TABLE
             QuestType.PLAYTIME -> Material.CLOCK
             QuestType.WALK -> Material.LEATHER_BOOTS
+            QuestType.CONSUME -> Material.GOLDEN_APPLE
+            QuestType.BREED_ANIMAL -> Material.WHEAT
+            QuestType.ENCHANT_ITEM -> Material.ENCHANTING_TABLE
+            QuestType.EXP_EARN -> Material.EXPERIENCE_BOTTLE
+            QuestType.SHEAR_SHEEP -> Material.SHEARS
         }
 
         val lore = mutableListOf(

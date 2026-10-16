@@ -55,24 +55,41 @@ class ItemBuilder {
     }
 
     companion object {
-        /**
-         * Resolves an item from either Nexo ID (e.g. nexo:ruby_sword or my_nexo_item)
-         * or fallback standard Bukkit Material.
-         */
+        private var nexoItemFromIdMethod: java.lang.reflect.Method? = null
+        private var nexoBuildMethod: java.lang.reflect.Method? = null
+        private var nexoInitialized = false
+        private val cachedNexoStacks = java.util.concurrent.ConcurrentHashMap<String, ItemStack>()
+
+        private fun initNexoReflection() {
+            if (nexoInitialized) return
+            nexoInitialized = true
+            try {
+                if (Bukkit.getPluginManager().isPluginEnabled("Nexo")) {
+                    val nexoItemsClass = Class.forName("com.nexomc.nexo.api.NexoItems")
+                    nexoItemFromIdMethod = nexoItemsClass.getMethod("itemFromId", String::class.java)
+                }
+            } catch (_: Throwable) {}
+        }
+
         fun fromIdentifier(identifier: String, defaultMaterial: Material = Material.STONE): ItemBuilder {
             val id = identifier.trim()
             
-            // Try Nexo item first if Nexo plugin is loaded
-            if (Bukkit.getPluginManager().isPluginEnabled("Nexo")) {
+            initNexoReflection()
+            val getMethod = nexoItemFromIdMethod
+            if (getMethod != null) {
+                val cached = cachedNexoStacks[id]
+                if (cached != null) {
+                    return ItemBuilder(cached.clone())
+                }
+
                 try {
                     val nexoId = if (id.startsWith("nexo:", ignoreCase = true)) id.substring(5) else id
-                    val nexoItemsClass = Class.forName("com.nexomc.nexo.api.NexoItems")
-                    val itemFromIdMethod = nexoItemsClass.getMethod("itemFromId", String::class.java)
-                    val nexoBuilder = itemFromIdMethod.invoke(null, nexoId)
+                    val nexoBuilder = getMethod.invoke(null, nexoId)
                     if (nexoBuilder != null) {
-                        val buildMethod = nexoBuilder.javaClass.getMethod("build")
-                        val stack = buildMethod.invoke(nexoBuilder) as? ItemStack
+                        val buildM = nexoBuildMethod ?: nexoBuilder.javaClass.getMethod("build").also { nexoBuildMethod = it }
+                        val stack = buildM.invoke(nexoBuilder) as? ItemStack
                         if (stack != null) {
+                            cachedNexoStacks[id] = stack.clone()
                             return ItemBuilder(stack)
                         }
                     }

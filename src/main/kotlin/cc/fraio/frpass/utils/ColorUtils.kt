@@ -11,15 +11,16 @@ object ColorUtils {
     fun colorize(player: Player?, text: String): String {
         var result = PAPIHook.setPlaceholders(player, text)
         
-        // Hex color support: &#RRGGBB
-        val matcher = HEX_PATTERN.matcher(result)
-        val buffer = StringBuffer()
-        while (matcher.find()) {
-            val color = matcher.group(1)
-            matcher.appendReplacement(buffer, "§x§${color[0]}§${color[1]}§${color[2]}§${color[3]}§${color[4]}§${color[5]}")
+        if (result.contains("&#")) {
+            val matcher = HEX_PATTERN.matcher(result)
+            val buffer = StringBuffer()
+            while (matcher.find()) {
+                val color = matcher.group(1)
+                matcher.appendReplacement(buffer, "§x§${color[0]}§${color[1]}§${color[2]}§${color[3]}§${color[4]}§${color[5]}")
+            }
+            matcher.appendTail(buffer)
+            result = buffer.toString()
         }
-        matcher.appendTail(buffer)
-        result = buffer.toString()
 
         return ChatColor.translateAlternateColorCodes('&', result)
     }

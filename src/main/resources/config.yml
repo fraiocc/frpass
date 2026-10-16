@@ -19,6 +19,8 @@ settings:
     level-up: "ENTITY_PLAYER_LEVELUP"
     quest-complete: "ENTITY_EXPERIENCE_ORB_PICKUP"
     claim-reward: "ENTITY_VILLAGER_YES"
+  command-aliases:
+    - "bp"
 
 tier-icons:
   claimed:

@@ -30,4 +30,8 @@ class MenuPacketListener(private val plugin: FrPass) : PacketListener {
             }
         }
     }
+
+    fun cleanPlayer(uuid: UUID) {
+        lastClick.remove(uuid)
+    }
 }

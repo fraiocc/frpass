@@ -1,5 +1,5 @@
 # FrPass Quest Configuration Example
-# Supported Quest Types: BREAK_BLOCK, PLACE_BLOCK, KILL_MOB, KILL_PLAYER, FISH, WALK, PLAYTIME, CRAFT, CONSUME
+# Supported Quest Types: BREAK_BLOCK, PLACE_BLOCK, KILL_MOB, KILL_PLAYER, FISH, WALK, PLAYTIME, CRAFT, CONSUME, BREED_ANIMAL, ENCHANT_ITEM, EXP_EARN, SHEAR_SHEEP
 # Item Reward Formats:
 # 1. Quoted with spaces: [ITEM] DIAMOND_PICKAXE:1 name:"&bMiner's Pride" lore:"&7Mines fast|&eTier 1 Pickaxe" custom-model-data:2001
 # 2. Classic with underscores: [ITEM] DIAMOND_PICKAXE:1 name:&bMiner's_Pride lore:&7Mines_fast
@@ -42,3 +42,35 @@ quests:
     extra-rewards:
       - "[MESSAGE] &bThanks for playing for 1 hour!"
       - "[MONEY] 2500"
+
+  eat_golden_apples:
+    display-name: "Golden Diet"
+    type: CONSUME
+    target: GOLDEN_APPLE
+    required-amount: 10
+    reward-xp: 150
+
+  breed_cows:
+    display-name: "Rancher"
+    type: BREED_ANIMAL
+    target: COW
+    required-amount: 15
+    reward-xp: 120
+
+  enchant_gear:
+    display-name: "Arcane Master"
+    type: ENCHANT_ITEM
+    required-amount: 5
+    reward-xp: 200
+
+  gather_xp:
+    display-name: "Experience Gatherer"
+    type: EXP_EARN
+    required-amount: 500
+    reward-xp: 250
+
+  shear_sheep:
+    display-name: "Wool Collector"
+    type: SHEAR_SHEEP
+    required-amount: 20
+    reward-xp: 100

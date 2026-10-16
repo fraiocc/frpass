@@ -54,9 +54,12 @@ class QuestManager(private val plugin: FrPass) {
 
     fun handleProgress(player: Player, type: QuestType, target: String? = null, amount: Int = 1) {
         val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
-        val activeQuests = quests.values.filter { it.type == type && data.activeQuests.contains(it.id) }
+        if (data.activeQuests.isEmpty()) return
         
-        for (quest in activeQuests) {
+        for (questId in data.activeQuests) {
+            val quest = quests[questId] ?: continue
+            if (quest.type != type) continue
+
             if (!quest.target.isNullOrEmpty() && !quest.target.equals(target, ignoreCase = true)) {
                 continue
             }

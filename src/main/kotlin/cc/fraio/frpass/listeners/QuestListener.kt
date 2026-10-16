@@ -7,9 +7,14 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.enchantment.EnchantItemEvent
+import org.bukkit.event.entity.EntityBreedEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.inventory.CraftItemEvent
+import org.bukkit.event.player.PlayerExpChangeEvent
 import org.bukkit.event.player.PlayerFishEvent
+import org.bukkit.event.player.PlayerItemConsumeEvent
+import org.bukkit.event.player.PlayerShearEntityEvent
 
 class QuestListener(private val plugin: FrPass) : Listener {
 
@@ -45,5 +50,33 @@ class QuestListener(private val plugin: FrPass) : Listener {
         val player = event.whoClicked as? Player ?: return
         val item = event.recipe.result
         plugin.questManager.handleProgress(player, QuestType.CRAFT, item.type.name, item.amount)
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    fun onConsume(event: PlayerItemConsumeEvent) {
+        plugin.questManager.handleProgress(event.player, QuestType.CONSUME, event.item.type.name, 1)
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    fun onBreed(event: EntityBreedEvent) {
+        val player = event.breeder as? Player ?: return
+        plugin.questManager.handleProgress(player, QuestType.BREED_ANIMAL, event.entityType.name, 1)
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    fun onEnchant(event: EnchantItemEvent) {
+        plugin.questManager.handleProgress(event.enchanter, QuestType.ENCHANT_ITEM, event.item.type.name, 1)
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    fun onExpChange(event: PlayerExpChangeEvent) {
+        if (event.amount > 0) {
+            plugin.questManager.handleProgress(event.player, QuestType.EXP_EARN, null, event.amount)
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    fun onShear(event: PlayerShearEntityEvent) {
+        plugin.questManager.handleProgress(event.player, QuestType.SHEAR_SHEEP, event.entity.type.name, 1)
     }
 }

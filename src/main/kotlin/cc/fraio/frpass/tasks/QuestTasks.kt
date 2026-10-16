@@ -17,6 +17,17 @@ class QuestTasks(private val plugin: FrPass) {
         // Walk Task (Runs every 1 second)
         plugin.foliaLib.impl.runTimer(Consumer { task ->
             for (player in Bukkit.getOnlinePlayers()) {
+                val data = plugin.playerDataManager.getPlayer(player.uniqueId)
+                val hasWalkQuest = data?.activeQuests?.any { questId ->
+                    plugin.questManager.quests[questId]?.type == QuestType.WALK
+                } == true
+
+                if (!hasWalkQuest) {
+                    lastLocations.remove(player.uniqueId)
+                    accumulatedWalk.remove(player.uniqueId)
+                    continue
+                }
+
                 val current = player.location
                 val last = lastLocations[player.uniqueId]
                 

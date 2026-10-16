@@ -55,6 +55,9 @@ class FrPass : JavaPlugin(), FrPassAPI {
     lateinit var questEditorManager: QuestEditorManager private set
     lateinit var configWatcher: ConfigWatcher private set
     lateinit var foliaLib: FoliaLib private set
+    lateinit var menuPacketListener: MenuPacketListener private set
+    var passCommand: PassCommand? = null
+        private set
 
     override fun onLoad() {
         PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
@@ -115,17 +118,22 @@ class FrPass : JavaPlugin(), FrPassAPI {
             registerEvents(TicketListener(this@FrPass), this@FrPass)
             registerEvents(cc.fraio.frpass.editor.QuestEditorListener(this@FrPass), this@FrPass)
         }
-        PacketEvents.getAPI().eventManager.registerListener(MenuPacketListener(this), com.github.retrooper.packetevents.event.PacketListenerPriority.NORMAL)
+        menuPacketListener = MenuPacketListener(this)
+        PacketEvents.getAPI().eventManager.registerListener(menuPacketListener, com.github.retrooper.packetevents.event.PacketListenerPriority.NORMAL)
         
         configWatcher = ConfigWatcher(this)
         configWatcher.start()
         
-        getCommand("frpass")?.setExecutor(PassCommand(this))
+        val passCmd = PassCommand(this)
+        passCommand = passCmd
+        getCommand("frpass")?.setExecutor(passCmd)
         getCommand("frpassadmin")?.let {
             val adminCmd = AdminCommand(this)
             it.setExecutor(adminCmd)
             it.tabCompleter = adminCmd
         }
+        
+        cc.fraio.frpass.utils.CommandAliasUtil.registerAliases(this)
         
         FrPassProvider.register(this)
         
@@ -144,6 +152,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
         tierManager.loadAll()
         questManager.loadAll()
         menuManager.refreshOpenMenus()
+        cc.fraio.frpass.utils.CommandAliasUtil.registerAliases(this)
     }
 
     override fun onDisable() {
