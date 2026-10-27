@@ -1,22 +1,22 @@
 package cc.fraio.frpass.menus
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.utils.ColorUtils
-import cc.fraio.frpass.utils.ItemBuilder
-import cc.fraio.frpass.utils.msg
-import org.bukkit.Bukkit
-import org.bukkit.Material
-import org.bukkit.entity.Player
-import org.bukkit.inventory.Inventory
-import org.bukkit.inventory.InventoryHolder
 import org.bukkit.configuration.file.YamlConfiguration
+import org.bukkit.entity.Player
 import java.io.File
+import java.io.InputStreamReader
+import java.util.concurrent.ConcurrentHashMap
 
 class MenuManager(private val plugin: FrPass) {
     enum class MenuType { MAIN, QUESTS, PASS }
-    private val openMenus = mutableMapOf<Player, Pair<MenuType, Int>>()
 
-    private val configCache = mutableMapOf<String, YamlConfiguration>()
+    private val openMenus = ConcurrentHashMap<Player, Pair<MenuType, Int>>()
+    private val configCache = ConcurrentHashMap<String, YamlConfiguration>()
+    private val activeRerolls = ConcurrentHashMap<Player, MutableSet<String>>()
+
+    val mainMenu = MainMenu(plugin)
+    val questsMenu = QuestsMenu(plugin)
+    val passMenu = PassMenu(plugin)
 
     init {
         saveDefaultMenus()
@@ -42,7 +42,22 @@ class MenuManager(private val plugin: FrPass) {
         for (name in menuNames) {
             val file = File(plugin.dataFolder, "menus/$name")
             if (file.exists()) {
-                configCache[name] = YamlConfiguration.loadConfiguration(file)
+                val config = YamlConfiguration.loadConfiguration(file)
+                val defaultStream = plugin.getResource("menus/$name")
+                if (defaultStream != null) {
+                    val defaultConfig = YamlConfiguration.loadConfiguration(InputStreamReader(defaultStream, Charsets.UTF_8))
+                    var modified = false
+                    for (key in defaultConfig.getKeys(true)) {
+                        if (!config.contains(key)) {
+                            config.set(key, defaultConfig.get(key))
+                            modified = true
+                        }
+                    }
+                    if (modified) {
+                        config.save(file)
+                    }
+                }
+                configCache[name] = config
             }
         }
     }
@@ -58,6 +73,10 @@ class MenuManager(private val plugin: FrPass) {
             configCache[name] = config
             config
         }
+    }
+
+    fun setOpenMenu(player: Player, type: MenuType, page: Int) {
+        openMenus[player] = Pair(type, page)
     }
 
     fun getOpenMenu(player: Player): Pair<MenuType, Int>? {
@@ -84,313 +103,17 @@ class MenuManager(private val plugin: FrPass) {
         }
     }
 
-    fun openMainMenu(player: Player) {
-        val config = getMenuConfig("main_menu.yml")
-        val title = ColorUtils.colorize(player, config.getString("menu.title", "&8Main Menu")!!)
-        val size = config.getInt("menu.size", 27)
-        
-        val inventory = Bukkit.createInventory(null as InventoryHolder?, size, title as String)
-        
-        val itemsSection = config.getConfigurationSection("menu.items")
-        if (itemsSection != null) {
-            for (key in itemsSection.getKeys(false)) {
-                val materialStr = itemsSection.getString("$key.material", "STONE")!!
-                val material = Material.matchMaterial(materialStr) ?: Material.STONE
-                val name = itemsSection.getString("$key.name", "")!!
-                val lore = itemsSection.getStringList("$key.lore")
-                val modelData = itemsSection.getInt("$key.custom-model-data", 0)
-                val slots = itemsSection.getIntegerList("$key.slots")
-                
-                val item = ItemBuilder(material)
-                    .setName(name, player)
-                    .setLore(lore, player)
-                    .setCustomModelData(modelData)
-                    .build()
-                    
-                for (slot in slots) {
-                    if (slot in 0 until size) {
-                        inventory.setItem(slot, item)
-                    }
-                }
-            }
-        }
-        player.openInventory(inventory as Inventory)
-        openMenus[player] = Pair(MenuType.MAIN, 1)
-    }
+    fun openMainMenu(player: Player) = mainMenu.open(player)
+    fun openQuestsMenu(player: Player, page: Int = 1) = questsMenu.open(player, page)
+    fun openPassMenu(player: Player, page: Int = 1) = passMenu.open(player, page)
 
-    private val activeRerolls = mutableMapOf<Player, MutableSet<String>>()
-
+    // Reroll Session Management
+    fun isRerollSessionActive(player: Player): Boolean = activeRerolls.containsKey(player)
     fun getRerollSelection(player: Player): MutableSet<String>? = activeRerolls[player]
-
     fun startRerollSession(player: Player) {
         activeRerolls[player] = mutableSetOf()
     }
-
     fun stopRerollSession(player: Player) {
         activeRerolls.remove(player)
-    }
-
-    fun openQuestsMenu(player: Player, page: Int = 1) {
-        val config = getMenuConfig("quests_menu.yml")
-        val title = ColorUtils.colorize(player, config.getString("menu.title", "&8Quests Menu (Page %page%)")!!.replace("%page%", page.toString()))
-        val size = config.getInt("menu.size", 54)
-        
-        val inventory = Bukkit.createInventory(null as InventoryHolder?, size, title as String)
-        
-        val questSlots = config.getIntegerList("menu.quest-slots")
-        val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
-        val activeQuests = data.activeQuests.mapNotNull { plugin.questManager.quests[it] }
-        val totalPages = Math.ceil(activeQuests.size.toDouble() / questSlots.size).toInt().coerceAtLeast(1)
-
-        val itemsSection = config.getConfigurationSection("menu.items")
-        val bgMatStr = itemsSection?.getString("background.material", "GRAY_STAINED_GLASS_PANE") ?: "GRAY_STAINED_GLASS_PANE"
-        val bgMat = Material.matchMaterial(bgMatStr) ?: Material.GRAY_STAINED_GLASS_PANE
-        val bgItem = ItemBuilder(bgMat).setName(" ", player).build()
-
-        if (itemsSection != null) {
-            for (key in itemsSection.getKeys(false)) {
-                val keyName = key.lowercase()
-                val slots = itemsSection.getIntegerList("$key.slots")
-
-                if (keyName == "prev_page" && page <= 1) {
-                    for (s in slots) {
-                        if (s in 0 until size) inventory.setItem(s, bgItem)
-                    }
-                    continue
-                }
-                if (keyName == "next_page" && page >= totalPages) {
-                    for (s in slots) {
-                        if (s in 0 until size) inventory.setItem(s, bgItem)
-                    }
-                    continue
-                }
-                
-                val materialStr = itemsSection.getString("$key.material", "STONE")!!
-                val material = Material.matchMaterial(materialStr) ?: Material.STONE
-                val name = itemsSection.getString("$key.name", "")!!
-                val lore = itemsSection.getStringList("$key.lore")
-                val modelData = itemsSection.getInt("$key.custom-model-data", 0)
-                
-                val item = ItemBuilder(material)
-                    .setName(name, player)
-                    .setLore(lore, player)
-                    .setCustomModelData(modelData)
-                    .build()
-                    
-                for (slot in slots) {
-                    if (slot in 0 until size) {
-                        inventory.setItem(slot, item)
-                    }
-                }
-            }
-        }
-
-        val rerollEnabled = plugin.configManager.config.getBoolean("reroll.enabled", true)
-        var rerollSlot = -1
-        if (rerollEnabled) {
-            val reqPerm = plugin.configManager.config.getBoolean("reroll.require-permission", false)
-            val perm = plugin.configManager.config.getString("reroll.permission", "frpass.reroll") ?: "frpass.reroll"
-            if (!reqPerm || player.hasPermission(perm)) {
-                val configuredSlot = plugin.configManager.config.getInt("reroll.slot", -1)
-                val isRerollActive = activeRerolls.containsKey(player)
-                val selectedQuests = activeRerolls[player] ?: mutableSetOf()
-                val limit = plugin.configManager.config.getInt("reroll.limit", 3)
-
-                val matStr = plugin.configManager.config.getString("reroll.button.material", "SUNFLOWER") ?: "SUNFLOWER"
-                val mat = Material.matchMaterial(matStr) ?: Material.SUNFLOWER
-                val modelData = plugin.configManager.config.getInt("reroll.button.custom-model-data", 0)
-                val bName = plugin.configManager.config.getString("reroll.button.name", "&e&lQuest Reroll") ?: "&e&lQuest Reroll"
-                val rawLore = if (isRerollActive) {
-                    plugin.configManager.config.getStringList("reroll.button.lore-mode-active")
-                } else {
-                    plugin.configManager.config.getStringList("reroll.button.lore-normal")
-                }
-
-                val formattedLore = rawLore.map { line ->
-                    line.replace("%limit%", limit.toString())
-                        .replace("%selected%", selectedQuests.size.toString())
-                }
-
-                val builder = ItemBuilder(mat)
-                    .setName(bName, player)
-                    .setLore(formattedLore, player)
-                    .setCustomModelData(modelData)
-
-                if (isRerollActive) {
-                    builder.setGlow(true)
-                }
-
-                val rerollItem = builder.build()
-
-                if (configuredSlot in 0 until size) {
-                    rerollSlot = configuredSlot
-                } else {
-                    rerollSlot = 49
-                }
-                inventory.setItem(rerollSlot, rerollItem)
-            }
-        }
-        
-        val startIndex = (page - 1) * questSlots.size
-        val endIndex = Math.min(startIndex + questSlots.size, activeQuests.size)
-        
-        val isRerollSessionActive = activeRerolls.containsKey(player)
-        val selectedSet = activeRerolls[player] ?: mutableSetOf()
-
-        var slotIndex = 0
-        for (i in startIndex until endIndex) {
-            val quest = activeQuests[i]
-            val progress = data.questProgress[quest.id] ?: 0
-            val isCompleted = progress >= quest.requiredAmount
-            val isSelected = selectedSet.contains(quest.id)
-            
-            val customMatStr = plugin.configManager.config.getString("core.quests.${quest.id}.material")
-                ?: if (isCompleted) "MINECART" else "PAPER"
-            val mat = Material.matchMaterial(customMatStr) ?: if (isCompleted) Material.MINECART else Material.PAPER
-            
-            val qName = player.msg("gui.quest-item.name", "%quest%" to (quest.displayName ?: quest.id))
-            val qLore = mutableListOf(
-                player.msg("gui.quest-item.lore-type", "%type%" to quest.type.name),
-                player.msg("gui.quest-item.lore-progress", "%progress%" to progress.toString(), "%required%" to quest.requiredAmount.toString()),
-                player.msg("gui.quest-item.lore-reward", "%xp%" to quest.rewardXp.toString())
-            )
-            if (isCompleted) qLore.add(player.msg("gui.quest-item.lore-completed"))
-
-            if (isRerollSessionActive) {
-                if (isSelected) {
-                    qLore.add(player.msg("gui.quest-item.lore-reroll-selected"))
-                } else {
-                    qLore.add(player.msg("gui.quest-item.lore-reroll-unselected"))
-                }
-            }
-            
-            val builder = ItemBuilder(mat).setName(qName, player).setLore(qLore, player)
-            if (isSelected) {
-                builder.setGlow(true)
-            }
-
-            inventory.setItem(questSlots[slotIndex], builder.build())
-            slotIndex++
-        }
-        
-        player.openInventory(inventory)
-        openMenus[player] = Pair(MenuType.QUESTS, page)
-    }
-
-    fun openPassMenu(player: Player, page: Int = 1) {
-        val menuConfig = getMenuConfig("pass_menu.yml")
-        val titleRaw = menuConfig.getString("menu.title", "&8Battlepass (Page %page%)")!!.replace("%page%", page.toString())
-        val title = ColorUtils.colorize(player, titleRaw)
-        val size = menuConfig.getInt("menu.size", 27)
-        
-        val inventory = Bukkit.createInventory(null as InventoryHolder?, size, title as String)
-        
-        // Load custom items
-        val itemsSection = menuConfig.getConfigurationSection("menu.items")
-        itemsSection?.getKeys(false)?.forEach { key ->
-            val matStr = itemsSection.getString("$key.material", "STONE")!!
-            val material = Material.matchMaterial(matStr) ?: Material.STONE
-            val name = itemsSection.getString("$key.name", " ")!!
-            val lore = itemsSection.getStringList("$key.lore")
-            val modelData = itemsSection.getInt("$key.custom-model-data", 0)
-            val slots = itemsSection.getIntegerList("$key.slots")
-            
-            val item = ItemBuilder(material)
-                .setName(name, player)
-                .setLore(lore, player)
-                .setCustomModelData(modelData)
-                .build()
-                
-            slots.forEach { slot ->
-                if (slot in 0 until size) {
-                    inventory.setItem(slot, item)
-                }
-            }
-        }
-        
-        val freeSlots = menuConfig.getIntegerList("menu.free-tier-slots")
-        val premiumSlots = menuConfig.getIntegerList("menu.premium-tier-slots")
-        val data = plugin.playerDataManager.getPlayer(player.uniqueId)
-        
-        if (data != null) {
-            val count = Math.min(freeSlots.size, premiumSlots.size)
-            var tierIndex = 1 + (page - 1) * count
-            
-            for (i in 0 until count) {
-                val tier = plugin.tierManager.getTier(tierIndex)
-                if (tier != null) {
-                    val isUnlocked = data.level >= tier.level
-                    val isFreeClaimed = data.claimedTiers.contains(tier.level)
-                    val isPremiumClaimed = data.claimedPremiumTiers.contains(tier.level)
-                    
-                    val defaultMatStrClaimed = plugin.configManager.config.getString("tier-icons.claimed.material", "MINECART")!!
-                    val defaultModelDataClaimed = plugin.configManager.config.getInt("tier-icons.claimed.custom-model-data", 0)
-                    val defaultMatStrUnlocked = plugin.configManager.config.getString("tier-icons.unlocked.material", "CHEST_MINECART")!!
-                    val defaultModelDataUnlocked = plugin.configManager.config.getInt("tier-icons.unlocked.custom-model-data", 0)
-                    val defaultMatStrLocked = plugin.configManager.config.getString("tier-icons.locked.material", "HOPPER_MINECART")!!
-                    val defaultModelDataLocked = plugin.configManager.config.getInt("tier-icons.locked.custom-model-data", 0)
-
-                    val matStr = if (tier.customIcon == null || tier.customIcon.equals("default", true)) defaultMatStrLocked else tier.customIcon
-                    val name = tier.customName ?: player.msg("gui.tier-item.name", "%tier%" to tier.level.toString())
-                    
-                    // Render Free Slot
-                    run {
-                        val slot = freeSlots[i]
-                        val matStrSlot = if (isFreeClaimed) defaultMatStrClaimed else if (isUnlocked) defaultMatStrUnlocked else matStr
-                        val mat = Material.matchMaterial(matStrSlot) ?: Material.matchMaterial(defaultMatStrLocked) ?: Material.MINECART
-                        val modelData = if (isFreeClaimed) defaultModelDataClaimed else if (isUnlocked) defaultModelDataUnlocked else (tier.customModelData ?: defaultModelDataLocked)
-                        
-                        val statusText = if (isFreeClaimed) player.msg("gui.tier-item.status-claimed")
-                        else if (isUnlocked) player.msg("gui.tier-item.status-unlocked")
-                        else player.msg("gui.tier-item.status-locked")
-                        
-                        val lore = mutableListOf<String>()
-                        if (tier.customLore != null) {
-                            lore.addAll(tier.customLore)
-                        } else {
-                            lore.add(player.msg("gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
-                        }
-                        lore.add("")
-                        lore.add(player.msg("gui.tier-item.status-prefix") + statusText)
-                        
-                        val item = ItemBuilder(mat).setName("$name &8(Free)", player).setLore(lore, player).setCustomModelData(modelData).build()
-                        if (slot in 0 until size) inventory.setItem(slot, item)
-                    }
-                    
-                    // Render Premium Slot
-                    run {
-                        val slot = premiumSlots[i]
-                        val hasPremium = data.premium
-                        val matStrSlot = if (isPremiumClaimed) defaultMatStrClaimed else if (isUnlocked && hasPremium) defaultMatStrUnlocked else matStr
-                        val mat = Material.matchMaterial(matStrSlot) ?: Material.matchMaterial(defaultMatStrLocked) ?: Material.MINECART
-                        val modelData = if (isPremiumClaimed) defaultModelDataClaimed else if (isUnlocked && hasPremium) defaultModelDataUnlocked else (tier.customModelData ?: defaultModelDataLocked)
-                        
-                        val statusText = if (isPremiumClaimed) player.msg("gui.tier-item.status-claimed")
-                        else if (isUnlocked && hasPremium) player.msg("gui.tier-item.status-unlocked")
-                        else player.msg("gui.tier-item.status-locked")
-                        
-                        val lore = mutableListOf<String>()
-                        if (tier.customLore != null) {
-                            lore.addAll(tier.customLore)
-                        } else {
-                            lore.add(player.msg("gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
-                        }
-                        if (!hasPremium) {
-                            lore.add("")
-                            lore.add(player.msg("gui.tier-item.requires-premium"))
-                        }
-                        lore.add("")
-                        lore.add(player.msg("gui.tier-item.status-prefix") + statusText)
-                        
-                        val item = ItemBuilder(mat).setName("$name &e(Premium)", player).setLore(lore, player).setCustomModelData(modelData).build()
-                        if (slot in 0 until size) inventory.setItem(slot, item)
-                    }
-                }
-                tierIndex++
-            }
-        }
-        
-        player.openInventory(inventory as Inventory)
-        openMenus[player] = Pair(MenuType.PASS, page)
     }
 }

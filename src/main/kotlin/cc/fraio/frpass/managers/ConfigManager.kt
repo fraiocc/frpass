@@ -3,6 +3,7 @@ package cc.fraio.frpass.managers
 import cc.fraio.frpass.FrPass
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
+import java.io.InputStreamReader
 
 class ConfigManager(private val plugin: FrPass) {
 
@@ -21,17 +22,24 @@ class ConfigManager(private val plugin: FrPass) {
     private fun loadConfig(fileName: String): YamlConfiguration {
         val file = File(plugin.dataFolder, fileName)
         if (!file.exists()) {
-            file.parentFile.mkdirs()
+            file.parentFile?.mkdirs()
             plugin.saveResource(fileName, false)
         }
         val config = YamlConfiguration.loadConfiguration(file)
         
         val defaultStream = plugin.getResource(fileName)
         if (defaultStream != null) {
-            val defaultConfig = YamlConfiguration.loadConfiguration(java.io.InputStreamReader(defaultStream, kotlin.text.Charsets.UTF_8))
-            config.setDefaults(defaultConfig)
-            config.options().copyDefaults(true)
-            config.save(file)
+            val defaultConfig = YamlConfiguration.loadConfiguration(InputStreamReader(defaultStream, Charsets.UTF_8))
+            var modified = false
+            for (key in defaultConfig.getKeys(true)) {
+                if (!config.contains(key)) {
+                    config.set(key, defaultConfig.get(key))
+                    modified = true
+                }
+            }
+            if (modified) {
+                config.save(file)
+            }
         }
         
         return config

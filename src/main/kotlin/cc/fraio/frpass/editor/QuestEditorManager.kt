@@ -5,6 +5,7 @@ import cc.fraio.frpass.quests.Quest
 import cc.fraio.frpass.quests.QuestType
 import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.ItemBuilder
+import cc.fraio.frpass.utils.msg
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -271,9 +272,7 @@ class QuestEditorManager(private val plugin: FrPass) {
     fun promptInput(player: Player, data: QuestEditorData, inputType: EditorInputType, promptText: String) {
         player.closeInventory()
         startSession(player, EditorSession(data, inputType, promptText))
-
-        val prefix = plugin.configManager.config.getString("settings.prefix", "&8[&bFrPass&8] ") ?: "&8[&bFrPass&8] "
-        player.sendMessage(ColorUtils.colorize("$prefix&e$promptText &7(Type &ccancel &7to abort)"))
+        player.sendMessage(player.msg("messages.editor.prompt-input", "%prompt%" to promptText))
     }
 
     fun applySessionInput(player: Player, session: EditorSession, input: String) {
@@ -282,7 +281,7 @@ class QuestEditorManager(private val plugin: FrPass) {
 
         plugin.foliaLib.impl.runNextTick {
             if (trimmed.equals("cancel", ignoreCase = true)) {
-                player.sendMessage(ColorUtils.colorize("&cCancelled."))
+                player.sendMessage(player.msg("messages.editor.cancelled"))
                 openQuestEditMenu(player, session.data)
                 return@runNextTick
             }

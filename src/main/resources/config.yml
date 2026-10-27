@@ -13,7 +13,7 @@ database:
 
 settings:
   lang: "en"
-  prefix: "&8[&bFrPass&8] &7"
+  prefix: "&aFrPass &8» &7"
   generate-default-files: true
   sounds:
     level-up: "ENTITY_PLAYER_LEVELUP"
@@ -21,6 +21,8 @@ settings:
     claim-reward: "ENTITY_VILLAGER_YES"
   command-aliases:
     - "bp"
+  frsync:
+    notify-console: true
 
 tier-icons:
   claimed:
@@ -79,3 +81,6 @@ reroll:
       - "&7Selected: &e%selected%/%limit%"
       - "&eClick this button again to CONFIRM reroll."
       - "&cPress ESC to CANCEL."
+
+ai:
+  enabled: true

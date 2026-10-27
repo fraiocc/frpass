@@ -1,15 +1,28 @@
 package cc.fraio.frpass.utils
 
 import cc.fraio.frpass.hooks.PAPIHook
+import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.bukkit.ChatColor
 import org.bukkit.entity.Player
 
 object ColorUtils {
 
     private val HEX_PATTERN = java.util.regex.Pattern.compile("&#([A-Fa-f0-9]{6})")
+    private val miniMessage = MiniMessage.miniMessage()
+    private val legacySerializer = LegacyComponentSerializer.legacySection()
+
+    private val MINI_MESSAGE_PATTERN = java.util.regex.Pattern.compile("<(?:/?[a-zA-Z0-9_#]+|[a-zA-Z0-9_#]+:[^>]+)>")
 
     fun colorize(player: Player?, text: String): String {
         var result = PAPIHook.setPlaceholders(player, text)
+
+        if (MINI_MESSAGE_PATTERN.matcher(result).find()) {
+            try {
+                val component = miniMessage.deserialize(result)
+                result = legacySerializer.serialize(component)
+            } catch (_: Exception) {}
+        }
         
         if (result.contains("&#")) {
             val matcher = HEX_PATTERN.matcher(result)

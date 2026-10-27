@@ -1,6 +1,7 @@
 package cc.fraio.frpass.listeners
 
 import cc.fraio.frpass.FrPass
+import cc.fraio.frpass.utils.msg
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
@@ -15,7 +16,7 @@ class PlayerConnectionListener(private val plugin: FrPass) : Listener {
         
         if (player.isOp && plugin.updateChecker.updateAvailable) {
             val link = plugin.updateChecker.downloadLink
-            player.sendMessage(cc.fraio.frpass.utils.ColorUtils.colorize("&8[&bFrPass&8] &aNew Update!! Download: &n$link"))
+            player.sendMessage(player.msg("messages.update-available", "%link%" to link))
         }
     }
 

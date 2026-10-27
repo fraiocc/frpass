@@ -12,8 +12,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
     
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (!sender.hasPermission("frpass.admin")) {
-            val prefix = plugin.configManager.config.getString("settings.prefix", "&8[&bFrPass&8] ") ?: "&8[&bFrPass&8] "
-            sender.sendMessage(ColorUtils.colorize("$prefix&cNo permission."))
+            sender.sendMessage(sender.msg("messages.no-permission"))
             return true
         }
 
@@ -25,7 +24,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         when (args[0].lowercase()) {
             "addxp" -> {
                 if (args.size < 3) {
-                    sender.sendMessage(ColorUtils.colorize("&cUsage: /frpassadmin addxp <player> <amount>"))
+                    sender.sendMessage(sender.msg("messages.usage-addxp"))
                     return true
                 }
                 val target = org.bukkit.Bukkit.getPlayer(args[1])
@@ -43,7 +42,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
             }
             "setpremium" -> {
                 if (args.size < 3) {
-                    sender.sendMessage(ColorUtils.colorize("&cUsage: /frpassadmin setpremium <player> <true|false>"))
+                    sender.sendMessage(sender.msg("messages.usage-setpremium"))
                     return true
                 }
                 val target = org.bukkit.Bukkit.getPlayer(args[1])
@@ -53,7 +52,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                 }
                 val value = args[2].toBooleanStrictOrNull()
                 if (value == null) {
-                    sender.sendMessage(ColorUtils.colorize("&cUsage: /frpassadmin setpremium <player> <true|false>"))
+                    sender.sendMessage(sender.msg("messages.usage-setpremium"))
                     return true
                 }
                 val data = plugin.playerDataManager.getPlayer(target.uniqueId)
@@ -67,7 +66,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
             }
             "giveticket" -> {
                 if (args.size < 3) {
-                    sender.sendMessage(ColorUtils.colorize("&cUsage: /frpassadmin giveticket <player> <amount>"))
+                    sender.sendMessage(sender.msg("messages.usage-giveticket"))
                     return true
                 }
                 val target = org.bukkit.Bukkit.getPlayer(args[1])
@@ -90,6 +89,47 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                 }
                 plugin.questEditorManager.openQuestListMenu(sender, 1)
             }
+            "ai" -> {
+                if (args.size < 2) {
+                    sender.sendMessage(sender.msg("messages.ai.help-header"))
+                    sender.sendMessage(sender.msg("messages.ai.help-create"))
+                    sender.sendMessage(sender.msg("messages.ai.help-edit"))
+                    sender.sendMessage(sender.msg("messages.ai.help-status"))
+                    return true
+                }
+                when (args[1].lowercase()) {
+                    "status" -> {
+                        plugin.aiManager.showStatus(sender)
+                    }
+                    "edit" -> {
+                        if (args.size < 4) {
+                            sender.sendMessage(sender.msg("messages.ai.usage-edit"))
+                            return true
+                        }
+                        val questId = args[2]
+                        val instruction = args.drop(3).joinToString(" ")
+                        plugin.aiManager.editQuest(sender, questId, instruction)
+                    }
+                    "create" -> {
+                        if (args.size < 3) {
+                            sender.sendMessage(sender.msg("messages.ai.usage-create"))
+                            return true
+                        }
+                        if (args[2].endsWith(".yml", ignoreCase = true) && args.size >= 4) {
+                            val fileName = args[2]
+                            val prompt = args.drop(3).joinToString(" ")
+                            plugin.aiManager.createQuest(sender, prompt, fileName)
+                        } else {
+                            val prompt = args.drop(2).joinToString(" ")
+                            plugin.aiManager.createQuest(sender, prompt, null)
+                        }
+                    }
+                    else -> {
+                        val prompt = args.drop(1).joinToString(" ")
+                        plugin.aiManager.createQuest(sender, prompt, null)
+                    }
+                }
+            }
             else -> {
                 sender.sendMessage(sender.msg("messages.admin-usage"))
             }
@@ -102,15 +142,21 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         if (!sender.hasPermission("frpass.admin")) return emptyList()
         
         if (args.size == 1) {
-            val subCommands = listOf("addxp", "setpremium", "giveticket", "editor")
+            val subCommands = listOf("addxp", "setpremium", "giveticket", "editor", "ai")
             return subCommands.filter { it.startsWith(args[0], ignoreCase = true) }
         } else if (args.size == 2) {
             val cmd = args[0].lowercase()
+            if (cmd == "ai") {
+                return listOf("create", "edit", "status").filter { it.startsWith(args[1], ignoreCase = true) }
+            }
             if (cmd == "addxp" || cmd == "setpremium" || cmd == "giveticket") {
                 return org.bukkit.Bukkit.getOnlinePlayers().map { it.name }.filter { it.startsWith(args[1], ignoreCase = true) }
             }
         } else if (args.size == 3) {
             val cmd = args[0].lowercase()
+            if (cmd == "ai" && args[1].equals("edit", ignoreCase = true)) {
+                return plugin.questManager.quests.keys.filter { it.startsWith(args[2], ignoreCase = true) }
+            }
             if (cmd == "addxp" || cmd == "giveticket") {
                 if (args[2].isEmpty()) return listOf("<amount>")
             } else if (cmd == "setpremium") {

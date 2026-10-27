@@ -22,9 +22,12 @@ import cc.fraio.frpass.tasks.QuestTasks
 import cc.fraio.frpass.api.FrPassAPI
 import cc.fraio.frpass.api.FrPassProvider
 import cc.fraio.frpass.editor.QuestEditorManager
+import cc.fraio.frpass.editor.QuestEditorListener
+import cc.fraio.frpass.managers.AIManager
 import cc.fraio.frpass.quests.QuestType
 import cc.fraio.frpass.listeners.TicketListener
-import cc.fraio.frpass.utils.ConfigWatcher
+import cc.fraio.frpass.utils.CommandAliasUtil
+import cc.fraio.frpass.utils.FrSync
 import cc.fraio.frpass.utils.UpdateChecker
 import com.tcoded.folialib.FoliaLib
 import com.github.retrooper.packetevents.PacketEvents
@@ -52,8 +55,9 @@ class FrPass : JavaPlugin(), FrPassAPI {
     lateinit var cycleManager: CycleManager private set
     lateinit var updateChecker: UpdateChecker private set
     lateinit var ticketManager: TicketManager private set
+    lateinit var aiManager: AIManager private set
     lateinit var questEditorManager: QuestEditorManager private set
-    lateinit var configWatcher: ConfigWatcher private set
+    lateinit var frSync: FrSync private set
     lateinit var foliaLib: FoliaLib private set
     lateinit var menuPacketListener: MenuPacketListener private set
     var passCommand: PassCommand? = null
@@ -104,25 +108,26 @@ class FrPass : JavaPlugin(), FrPassAPI {
         
         cycleManager = CycleManager(this)
         menuManager = MenuManager(this)
-        questEditorManager = cc.fraio.frpass.editor.QuestEditorManager(this)
+        questEditorManager = QuestEditorManager(this)
         
         questTasks = QuestTasks(this)
         questTasks.startTasks()
         
         ticketManager = TicketManager(this)
+        aiManager = AIManager(this)
         
         server.pluginManager.apply {
             registerEvents(InventoryListener(this@FrPass), this@FrPass)
             registerEvents(PlayerConnectionListener(this@FrPass), this@FrPass)
             registerEvents(QuestListener(this@FrPass), this@FrPass)
             registerEvents(TicketListener(this@FrPass), this@FrPass)
-            registerEvents(cc.fraio.frpass.editor.QuestEditorListener(this@FrPass), this@FrPass)
+            registerEvents(QuestEditorListener(this@FrPass), this@FrPass)
         }
         menuPacketListener = MenuPacketListener(this)
-        PacketEvents.getAPI().eventManager.registerListener(menuPacketListener, com.github.retrooper.packetevents.event.PacketListenerPriority.NORMAL)
+        PacketEvents.getAPI().eventManager.registerListener(menuPacketListener, PacketListenerPriority.NORMAL)
         
-        configWatcher = ConfigWatcher(this)
-        configWatcher.start()
+        frSync = FrSync(this)
+        frSync.start()
         
         val passCmd = PassCommand(this)
         passCommand = passCmd
@@ -133,7 +138,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
             it.tabCompleter = adminCmd
         }
         
-        cc.fraio.frpass.utils.CommandAliasUtil.registerAliases(this)
+        CommandAliasUtil.registerAliases(this)
         
         FrPassProvider.register(this)
         
@@ -151,16 +156,26 @@ class FrPass : JavaPlugin(), FrPassAPI {
         langManager.load()
         tierManager.loadAll()
         questManager.loadAll()
+        menuManager.loadMenuConfigs()
         menuManager.refreshOpenMenus()
-        cc.fraio.frpass.utils.CommandAliasUtil.registerAliases(this)
+        CommandAliasUtil.registerAliases(this)
+        if (this::aiManager.isInitialized) {
+            aiManager.reload()
+        }
     }
 
     override fun onDisable() {
-        if (::configWatcher.isInitialized) {
-            configWatcher.stop()
+        if (::frSync.isInitialized) {
+            frSync.stop()
+        }
+        if (::playerDataManager.isInitialized) {
+            playerDataManager.saveAllSync()
         }
         if (this::databaseManager.isInitialized) {
             databaseManager.disconnect()
+        }
+        if (this::aiManager.isInitialized) {
+            aiManager.onDisable()
         }
         PacketEvents.getAPI().terminate()
         logger.info("FrPass has been disabled!")

@@ -3,6 +3,7 @@ package cc.fraio.frpass.editor
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.quests.Quest
 import cc.fraio.frpass.utils.ColorUtils
+import cc.fraio.frpass.utils.msg
 import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.entity.Player
@@ -77,9 +78,9 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
                             // Delete Quest
                             val deleted = editorManager.questStorage.deleteQuest(quest.id)
                             if (deleted) {
-                                player.sendMessage(ColorUtils.colorize("&aQuest '${quest.id}' was deleted successfully!"))
+                                player.sendMessage(player.msg("messages.editor.quest-deleted", "%quest%" to quest.id))
                             } else {
-                                player.sendMessage(ColorUtils.colorize("&cFailed to delete quest '${quest.id}'."))
+                                player.sendMessage(player.msg("messages.editor.quest-delete-failed", "%quest%" to quest.id))
                             }
                             editorManager.openQuestListMenu(player, page)
                         } else {
@@ -131,25 +132,25 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
             }
             49 -> {
                 if (data.id.isBlank()) {
-                    player.sendMessage(ColorUtils.colorize("&cPlease set a Quest ID first."))
+                    player.sendMessage(player.msg("messages.editor.enter-id-first"))
                     return
                 }
                 val saved = editorManager.questStorage.saveQuest(data)
                 if (saved) {
-                    player.sendMessage(ColorUtils.colorize("&aQuest '${data.id}' saved successfully."))
+                    player.sendMessage(player.msg("messages.editor.quest-saved", "%quest%" to data.id))
                     editorManager.openQuestListMenu(player, 1)
                 } else {
-                    player.sendMessage(ColorUtils.colorize("&cFailed to save quest."))
+                    player.sendMessage(player.msg("messages.editor.quest-save-failed"))
                 }
             }
             53 -> {
                 if (!data.isNew && data.originalId != null) {
                     val deleted = editorManager.questStorage.deleteQuest(data.originalId)
                     if (deleted) {
-                        player.sendMessage(ColorUtils.colorize("&aQuest '${data.originalId}' deleted."))
+                        player.sendMessage(player.msg("messages.editor.quest-deleted", "%quest%" to data.originalId))
                         editorManager.openQuestListMenu(player, 1)
                     } else {
-                        player.sendMessage(ColorUtils.colorize("&cFailed to delete quest."))
+                        player.sendMessage(player.msg("messages.editor.quest-delete-failed", "%quest%" to data.originalId))
                     }
                 }
             }
