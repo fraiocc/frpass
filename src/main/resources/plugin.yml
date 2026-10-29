@@ -2,12 +2,12 @@ name: FrPass
 version: '${version}'
 main: cc.fraio.frpass.FrPass
 api-version: '1.21'
+folia-supported: true
 prefix: FrPass
 authors: [ Fraio ]
 website: "https://fraio.cc"
 description: Advanced, completely customizable packet-based Battlepass.
-depend: [packetevents]
-softdepend: [Vault, PlaceholderAPI, MusoPlugin, Nexo]
+softdepend: [packetevents, Vault, PlaceholderAPI, MusoPlugin, Nexo]
 
 commands:
   frpass:
@@ -20,3 +20,5 @@ commands:
 libraries:
   - "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
   - "com.zaxxer:HikariCP:5.1.0"
+  - "org.mariadb.jdbc:mariadb-java-client:3.3.3"
+  - "org.postgresql:postgresql:42.7.3"

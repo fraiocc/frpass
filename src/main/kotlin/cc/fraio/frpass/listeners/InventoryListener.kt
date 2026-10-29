@@ -3,6 +3,7 @@ package cc.fraio.frpass.listeners
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.api.events.FrPassTierClaimEvent
 import cc.fraio.frpass.data.PlayerData
+import cc.fraio.frpass.menus.MenuInventoryHolder
 import cc.fraio.frpass.menus.MenuManager.MenuType
 import cc.fraio.frpass.utils.msg
 import org.bukkit.Bukkit
@@ -19,12 +20,13 @@ class InventoryListener(private val plugin: FrPass) : Listener {
     @EventHandler
     fun onClick(event: InventoryClickEvent) {
         val player = event.whoClicked as? Player ?: return
-        val state = plugin.menuManager.getOpenMenu(player) ?: return
+        val topInv = event.view.topInventory
+        val holder = topInv.holder as? MenuInventoryHolder
+        val state = if (holder != null) Pair(holder.type, holder.page) else plugin.menuManager.getOpenMenu(player) ?: return
         
         event.isCancelled = true
         player.updateInventory()
         
-        val topInv = event.view.topInventory
         val isTopInventoryClick = event.clickedInventory == topInv || (event.rawSlot in 0 until topInv.size)
         if (!isTopInventoryClick) return
 
@@ -56,8 +58,7 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         val questSlots = config.getIntegerList("menu.quest-slots")
 
         val rerollEnabled = plugin.configManager.config.getBoolean("reroll.enabled", true)
-        val configuredRerollSlot = plugin.configManager.config.getInt("reroll.slot", -1)
-        val rerollSlot = if (configuredRerollSlot in 0 until inventorySize) configuredRerollSlot else 49
+        val rerollSlot = plugin.menuManager.resolveRerollSlot(inventorySize, config)
 
         val isRerollActive = plugin.menuManager.getRerollSelection(player) != null
 
@@ -71,9 +72,9 @@ class InventoryListener(private val plugin: FrPass) : Listener {
             return
         }
 
-        // Navigation
         val activeQuests = plugin.playerDataManager.getPlayer(player.uniqueId)?.activeQuests?.mapNotNull { plugin.questManager.quests[it] } ?: emptyList()
-        val totalPages = Math.ceil(activeQuests.size.toDouble() / questSlots.size).toInt().coerceAtLeast(1)
+        val pageSize = questSlots.size.coerceAtLeast(1)
+        val totalPages = ((activeQuests.size - 1) / pageSize + 1).coerceAtLeast(1)
 
         when (slot) {
             in backSlots -> {
@@ -168,10 +169,11 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         val backSlots = menuConfig.getIntegerList("menu.items.back_button.slots")
         val nextSlots = menuConfig.getIntegerList("menu.items.next_page.slots")
         val prevSlots = menuConfig.getIntegerList("menu.items.prev_page.slots")
+        val totalPages = plugin.menuManager.passMenu.getTotalPages()
 
         when (slot) {
             in backSlots -> plugin.menuManager.openMainMenu(player)
-            in nextSlots -> plugin.menuManager.openPassMenu(player, page + 1)
+            in nextSlots -> if (page < totalPages) plugin.menuManager.openPassMenu(player, page + 1)
             in prevSlots -> if (page > 1) plugin.menuManager.openPassMenu(player, page - 1)
             in freeSlots -> claimTier(player, data, freeSlots.indexOf(slot), page, freeSlots.size, premiumSlots.size, isPremiumReward = false)
             in premiumSlots -> claimTier(player, data, premiumSlots.indexOf(slot), page, freeSlots.size, premiumSlots.size, isPremiumReward = true)
@@ -187,7 +189,7 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         premiumCount: Int,
         isPremiumReward: Boolean
     ) {
-        val count = Math.min(freeCount, premiumCount)
+        val count = minOf(freeCount, premiumCount)
         val tierLevel = ((page - 1) * count) + slotIndex + 1
         val tier = plugin.tierManager.getTier(tierLevel) ?: return
 
@@ -203,6 +205,7 @@ class InventoryListener(private val plugin: FrPass) : Listener {
                 plugin.rewardManager.giveRewards(player, tier.freeRewards)
             }
 
+            plugin.playerDataManager.savePlayer(player.uniqueId)
             Bukkit.getPluginManager().callEvent(FrPassTierClaimEvent(player, tierLevel, isPremiumReward))
             playClaimSound(player)
             plugin.menuManager.openPassMenu(player, page)
@@ -221,7 +224,7 @@ class InventoryListener(private val plugin: FrPass) : Listener {
     @EventHandler
     fun onDrag(event: InventoryDragEvent) {
         val player = event.whoClicked as? Player ?: return
-        if (plugin.menuManager.isPluginMenu(player)) {
+        if (event.view.topInventory.holder is MenuInventoryHolder || plugin.menuManager.isPluginMenu(player)) {
             event.isCancelled = true
         }
     }
@@ -229,9 +232,11 @@ class InventoryListener(private val plugin: FrPass) : Listener {
     @EventHandler
     fun onClose(event: InventoryCloseEvent) {
         val player = event.player as? Player ?: return
-        if (!plugin.menuManager.isPluginMenu(player)) return
+        if (event.view.topInventory.holder !is MenuInventoryHolder && !plugin.menuManager.isPluginMenu(player)) return
 
-        plugin.foliaLib.impl.runLater(Runnable {
+        plugin.menuManager.removeOpenMenu(player)
+        plugin.foliaLib.scheduler.runAtEntityLater(player, Runnable {
+            if (!player.isOnline) return@Runnable
             if (!plugin.menuManager.isPluginMenu(player)) {
                 val selection = plugin.menuManager.getRerollSelection(player)
                 if (selection != null) {
@@ -242,6 +247,5 @@ class InventoryListener(private val plugin: FrPass) : Listener {
                 }
             }
         }, 1L)
-        plugin.menuManager.removeOpenMenu(player)
     }
 }

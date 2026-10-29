@@ -10,9 +10,11 @@ import org.bukkit.Sound
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
+import java.util.function.Consumer
 
 class QuestManager(private val plugin: FrPass) {
-    val quests = mutableMapOf<String, Quest>()
+    val quests = ConcurrentHashMap<String, Quest>()
 
     fun loadAll() {
         quests.clear()
@@ -22,12 +24,12 @@ class QuestManager(private val plugin: FrPass) {
         }
         
         val autoGenerate = plugin.configManager.config.getBoolean("settings.generate-default-files", true)
-        val files = folder.listFiles()?.filter { it.extension == "yml" } ?: emptyList()
+        val files = folder.listFiles()?.filter { it.extension.equals("yml", ignoreCase = true) } ?: emptyList()
         if (files.isEmpty() && autoGenerate) {
             plugin.saveResource("core/quests/example.yml", true)
         }
 
-        folder.listFiles()?.filter { it.extension == "yml" }?.forEach { file ->
+        folder.listFiles()?.filter { it.extension.equals("yml", ignoreCase = true) }?.forEach { file ->
             val config = YamlConfiguration.loadConfiguration(file)
             val section = config.getConfigurationSection("quests") ?: return@forEach
             
@@ -45,14 +47,17 @@ class QuestManager(private val plugin: FrPass) {
                 val required = section.getInt("$key.required-amount", 10)
                 val xp = section.getInt("$key.reward-xp", 50)
                 val extraRewards = section.getStringList("$key.extra-rewards")
+                val material = section.getString("$key.material")
+                val customModelData = section.getInt("$key.custom-model-data", 0)
                 
-                quests[key] = Quest(key, displayName, type, target, required, xp, extraRewards)
+                quests[key] = Quest(key, displayName, type, target, required, xp, extraRewards, material, customModelData)
             }
         }
         plugin.logger.info("Loaded ${quests.size} quests.")
     }
 
     fun handleProgress(player: Player, type: QuestType, target: String? = null, amount: Int = 1) {
+        if (amount <= 0) return
         val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
         if (data.activeQuests.isEmpty()) return
         
@@ -67,7 +72,7 @@ class QuestManager(private val plugin: FrPass) {
             val currentProgress = data.questProgress[quest.id] ?: 0
             if (currentProgress >= quest.requiredAmount) continue
             
-            val newProgress = currentProgress + amount
+            val newProgress = (currentProgress + amount).coerceAtMost(quest.requiredAmount)
             data.questProgress[quest.id] = newProgress
             
             val isCompleted = newProgress >= quest.requiredAmount
@@ -85,18 +90,22 @@ class QuestManager(private val plugin: FrPass) {
         plugin.rewardManager.giveRewards(player, quest.extraRewards)
         
         val prefix = plugin.configManager.config.getString("settings.prefix") ?: ""
-        player.sendMessage(player.msg("messages.quest-completed", 
-            "%prefix%" to prefix,
-            "%quest%" to (quest.displayName ?: quest.id),
-            "%xp%" to quest.rewardXp.toString()
-        ))
+        val soundStr = plugin.configManager.config.getString("settings.sounds.quest-complete")
 
-        val soundStr = plugin.configManager.config.getString("settings.sounds.quest-complete") ?: return
-        if (soundStr.isNotEmpty()) {
-            try {
-                val sound = Sound.valueOf(soundStr.uppercase())
-                player.playSound(player.location, sound, 1f, 1f)
-            } catch (ignored: Exception) {}
-        }
+        plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+            if (!player.isOnline) return@Consumer
+            player.sendMessage(player.msg("messages.quest-completed", 
+                "%prefix%" to prefix,
+                "%quest%" to (quest.displayName ?: quest.id),
+                "%xp%" to quest.rewardXp.toString()
+            ))
+
+            if (!soundStr.isNullOrEmpty()) {
+                try {
+                    val sound = Sound.valueOf(soundStr.uppercase())
+                    player.playSound(player.location, sound, 1f, 1f)
+                } catch (_: Exception) {}
+            }
+        })
     }
 }

@@ -7,6 +7,7 @@ import cc.fraio.frpass.utils.ItemBuilder
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import java.util.function.Consumer
 
 class RewardManager(private val plugin: FrPass) {
 
@@ -31,7 +32,9 @@ class RewardManager(private val plugin: FrPass) {
 
     private fun executeCommandReward(player: Player, content: String) {
         val cmd = content.replace("%player%", player.name)
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+        plugin.foliaLib.scheduler.runNextTick(Consumer { _ ->
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+        })
     }
 
     private fun executeMessageReward(player: Player, content: String) {
@@ -49,14 +52,14 @@ class RewardManager(private val plugin: FrPass) {
     }
 
     private fun executeXpReward(player: Player, content: String) {
-        val amount = content.toIntOrNull()
-        if (amount != null) {
-            player.giveExp(amount)
-        }
+        val amount = content.toIntOrNull() ?: return
+        plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+            if (player.isOnline) {
+                player.giveExp(amount)
+            }
+        })
     }
 
-    // Format: DIAMOND:64 name:"&bSpecial Diamond" lore:"&7Line 1|&7Line 2" custom-model-data:123
-    // Alternative format (underscores): DIAMOND:64 name:&bSpecial_Diamond lore:&7Line_1|&7Line_2
     private fun executeItemReward(player: Player, content: String) {
         val tokens = parseRewardTokens(content)
         if (tokens.isEmpty()) return
@@ -64,9 +67,8 @@ class RewardManager(private val plugin: FrPass) {
         val matAmount = tokens[0].split(":")
         val materialStr = matAmount[0]
         val amount = if (matAmount.size > 1) matAmount[1].toIntOrNull() ?: 1 else 1
-        val material = Material.matchMaterial(materialStr) ?: return
 
-        val builder = ItemBuilder(material)
+        val builder = ItemBuilder.fromIdentifier(materialStr, Material.AIR)
         
         for (i in 1 until tokens.size) {
             val token = tokens[i]
@@ -88,14 +90,18 @@ class RewardManager(private val plugin: FrPass) {
         }
 
         val item = builder.build()
+        if (item.type.isAir) return
         item.amount = amount
 
-        val leftover = player.inventory.addItem(item)
-        if (leftover.isNotEmpty()) {
-            for (dropItem in leftover.values) {
-                player.world.dropItemNaturally(player.location, dropItem)
+        plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+            if (!player.isOnline) return@Consumer
+            val leftover = player.inventory.addItem(item)
+            if (leftover.isNotEmpty()) {
+                for (dropItem in leftover.values) {
+                    player.world.dropItemNaturally(player.location, dropItem)
+                }
             }
-        }
+        })
     }
 
     private fun parseRewardTokens(input: String): List<String> {

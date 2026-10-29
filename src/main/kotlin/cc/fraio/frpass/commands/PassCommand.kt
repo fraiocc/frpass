@@ -90,17 +90,17 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         val requiredMoney = config.getDouble("gift.cost.money", 0.0)
         if (requiredMoney > 0.0) {
             val eco = VaultHook.economy
-            if (eco != null) {
-                if (!eco.has(sender, requiredMoney)) {
-                    sender.sendMessage(sender.msg("messages.gift-not-enough-money", "%amount%" to requiredMoney.toString()))
-                    return
-                }
+            if (eco == null || !eco.has(sender, requiredMoney)) {
+                sender.sendMessage(sender.msg("messages.gift-not-enough-money", "%amount%" to requiredMoney.toString()))
+                return
+            }
+            val res = eco.withdrawPlayer(sender, requiredMoney)
+            if (!res.transactionSuccess()) {
+                sender.sendMessage(sender.msg("messages.gift-not-enough-money", "%amount%" to requiredMoney.toString()))
+                return
             }
         }
 
-        if (requiredMoney > 0.0) {
-            VaultHook.economy?.withdrawPlayer(sender, requiredMoney)
-        }
         if (requiredXp > 0) {
             senderData.xp -= requiredXp
         }
@@ -108,6 +108,8 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         val transferPremium = config.getBoolean("gift.transfer-premium", true)
         if (transferPremium) {
             senderData.premium = false
+        }
+        if (transferPremium || requiredXp > 0) {
             plugin.playerDataManager.savePlayer(sender.uniqueId)
         }
 

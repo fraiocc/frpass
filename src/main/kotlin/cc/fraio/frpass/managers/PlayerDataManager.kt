@@ -4,27 +4,89 @@ import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.api.events.FrPassLevelUpEvent
 import cc.fraio.frpass.data.PlayerData
 import cc.fraio.frpass.utils.msg
+import com.tcoded.folialib.wrapper.task.WrappedTask
 import org.bukkit.Bukkit
 import org.bukkit.Sound
 import java.sql.Connection
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
 
 class PlayerDataManager(private val plugin: FrPass) {
     private val cache = ConcurrentHashMap<UUID, PlayerData>()
+    private var autoSaveTask: WrappedTask? = null
 
     fun init() {
-        plugin.foliaLib.impl.runTimerAsync(Consumer { _ ->
+        autoSaveTask?.cancel()
+        autoSaveTask = plugin.foliaLib.scheduler.runTimerAsync(Runnable {
             for (player in Bukkit.getOnlinePlayers()) {
                 savePlayer(player.uniqueId)
             }
         }, 5L, 5L, TimeUnit.MINUTES)
     }
 
+    fun shutdown() {
+        autoSaveTask?.cancel()
+        autoSaveTask = null
+        saveAllSync()
+    }
+
+    fun syncOnlinePlayers() {
+        val mode = plugin.configManager.config.getString("quest-system.mode", "ROTATING")?.uppercase()
+        val currentCycle = plugin.cycleManager.getCurrentCycle()
+
+        for ((uuid, data) in cache) {
+            var changed = false
+            if (mode == "ALL") {
+                val allKeys = plugin.questManager.quests.keys.toList()
+                if (data.activeQuests != allKeys) {
+                    data.activeQuests = CopyOnWriteArrayList(allKeys)
+                    changed = true
+                }
+            } else {
+                if (data.questCycle < currentCycle) {
+                    data.questCycle = currentCycle
+                    data.questProgress.clear()
+                    assignQuests(data)
+                    changed = true
+                } else {
+                    val validActive = data.activeQuests.filter { plugin.questManager.quests.containsKey(it) }
+                    if (validActive.size != data.activeQuests.size || validActive.isEmpty()) {
+                        data.activeQuests = CopyOnWriteArrayList(validActive)
+                        if (data.activeQuests.isEmpty()) {
+                            assignQuests(data)
+                        }
+                        changed = true
+                    }
+                }
+            }
+            if (changed) {
+                savePlayer(uuid)
+            }
+            checkLevelUp(uuid, data)
+        }
+    }
+
+    fun checkCycle(uuid: UUID) {
+        val data = cache[uuid] ?: return
+        val currentCycle = plugin.cycleManager.getCurrentCycle()
+        val mode = plugin.configManager.config.getString("quest-system.mode", "ROTATING")?.uppercase()
+
+        if (mode == "ROTATING" && data.questCycle < currentCycle) {
+            data.questCycle = currentCycle
+            data.questProgress.clear()
+            assignQuests(data)
+            savePlayer(uuid)
+        } else if (mode == "ALL" && data.activeQuests.size != plugin.questManager.quests.size) {
+            data.activeQuests = CopyOnWriteArrayList(plugin.questManager.quests.keys)
+            savePlayer(uuid)
+        }
+    }
+
     fun loadPlayer(uuid: UUID) {
-        plugin.foliaLib.impl.runAsync(Consumer { _ ->
+        plugin.foliaLib.scheduler.runAsync(Consumer { _ ->
             try {
                 plugin.databaseManager.getConnection()?.use { conn ->
                     conn.prepareStatement("SELECT * FROM player_data WHERE uuid = ?").use { stmt ->
@@ -35,10 +97,14 @@ class PlayerDataManager(private val plugin: FrPass) {
                                 val level = rs.getInt("level")
                                 val premium = rs.getBoolean("premium")
                                 val claimedStr = rs.getString("claimed_tiers") ?: ""
-                                val claimedTiers = if (claimedStr.isEmpty()) mutableListOf() else claimedStr.split(",").mapNotNull { it.toIntOrNull() }.toMutableList()
+                                val claimedTiers = CopyOnWriteArrayList(
+                                    if (claimedStr.isEmpty()) emptyList() else claimedStr.split(",").mapNotNull { it.toIntOrNull() }
+                                )
 
                                 val claimedPremiumStr = rs.getString("claimed_premium_tiers") ?: ""
-                                val claimedPremiumTiers = if (claimedPremiumStr.isEmpty()) mutableListOf() else claimedPremiumStr.split(",").mapNotNull { it.toIntOrNull() }.toMutableList()
+                                val claimedPremiumTiers = CopyOnWriteArrayList(
+                                    if (claimedPremiumStr.isEmpty()) emptyList() else claimedPremiumStr.split(",").mapNotNull { it.toIntOrNull() }
+                                )
 
                                 var pendingTickets = 0
                                 try {
@@ -46,7 +112,7 @@ class PlayerDataManager(private val plugin: FrPass) {
                                 } catch (_: Exception) {}
 
                                 val questsStr = rs.getString("quests_progress") ?: ""
-                                val questProgress = mutableMapOf<String, Int>()
+                                val questProgress = ConcurrentHashMap<String, Int>()
                                 if (questsStr.isNotEmpty()) {
                                     questsStr.split(",").forEach {
                                         val parts = it.split(":")
@@ -58,7 +124,9 @@ class PlayerDataManager(private val plugin: FrPass) {
 
                                 val cycle = rs.getInt("quest_cycle")
                                 val activeStr = rs.getString("active_quests") ?: ""
-                                val activeQuests = if (activeStr.isEmpty()) mutableListOf() else activeStr.split(",").toMutableList()
+                                val activeQuests = CopyOnWriteArrayList(
+                                    if (activeStr.isEmpty()) emptyList() else activeStr.split(",")
+                                )
 
                                 val data = PlayerData(uuid, xp, level, premium, claimedTiers, claimedPremiumTiers, questProgress, cycle, activeQuests, pendingTickets)
                                 val currentCycle = plugin.cycleManager.getCurrentCycle()
@@ -69,26 +137,31 @@ class PlayerDataManager(private val plugin: FrPass) {
                                     data.questProgress.clear()
                                     assignQuests(data)
                                 } else if (mode == "ALL") {
-                                    data.activeQuests = plugin.questManager.quests.keys.toMutableList()
+                                    data.activeQuests = CopyOnWriteArrayList(plugin.questManager.quests.keys)
                                 }
 
                                 if (data.activeQuests.isEmpty() || data.activeQuests.none { plugin.questManager.quests.containsKey(it) }) {
                                     assignQuests(data)
                                 }
 
-                                cache[uuid] = data
+                                if (Bukkit.getPlayer(uuid) != null) {
+                                    cache[uuid] = data
+                                }
                             } else {
                                 val data = PlayerData(uuid)
                                 val currentCycle = plugin.cycleManager.getCurrentCycle()
                                 data.questCycle = currentCycle
                                 assignQuests(data)
 
-                                cache[uuid] = data
-                                conn.prepareStatement("INSERT INTO player_data (uuid, xp, level, premium, claimed_tiers, claimed_premium_tiers, quests_progress, quest_cycle, active_quests, pending_tickets) VALUES (?, 0, 1, 0, '', '', '', ?, ?, 0)").use { insert ->
+                                conn.prepareStatement("INSERT INTO player_data (uuid, xp, level, premium, claimed_tiers, claimed_premium_tiers, quests_progress, quest_cycle, active_quests, pending_tickets) VALUES (?, 0, 0, 0, '', '', '', ?, ?, 0)").use { insert ->
                                     insert.setString(1, uuid.toString())
                                     insert.setInt(2, data.questCycle)
                                     insert.setString(3, data.activeQuests.joinToString(","))
                                     insert.executeUpdate()
+                                }
+
+                                if (Bukkit.getPlayer(uuid) != null) {
+                                    cache[uuid] = data
                                 }
                             }
                         }
@@ -104,15 +177,15 @@ class PlayerDataManager(private val plugin: FrPass) {
         val mode = plugin.configManager.config.getString("quest-system.mode", "ROTATING")?.uppercase()
         val allQuests = plugin.questManager.quests.keys.toList()
         if (allQuests.isEmpty()) {
-            data.activeQuests = mutableListOf()
+            data.activeQuests = CopyOnWriteArrayList()
             return
         }
 
         val amount = plugin.configManager.config.getInt("quest-system.rotate-amount", 5)
         data.activeQuests = if (mode == "ALL" || allQuests.size <= amount) {
-            allQuests.toMutableList()
+            CopyOnWriteArrayList(allQuests)
         } else {
-            allQuests.shuffled().take(amount).toMutableList()
+            CopyOnWriteArrayList(allQuests.shuffled().take(amount))
         }
     }
 
@@ -122,7 +195,7 @@ class PlayerDataManager(private val plugin: FrPass) {
     }
 
     private fun saveAsync(data: PlayerData) {
-        plugin.foliaLib.impl.runAsync(Consumer { _ ->
+        plugin.foliaLib.scheduler.runAsync(Consumer { _ ->
             try {
                 plugin.databaseManager.getConnection()?.use { conn ->
                     executeUpdate(conn, data)
@@ -150,7 +223,7 @@ class PlayerDataManager(private val plugin: FrPass) {
             stmt.setBoolean(3, data.premium)
             stmt.setString(4, data.claimedTiers.joinToString(","))
             stmt.setString(5, data.claimedPremiumTiers.joinToString(","))
-            val qpStr = data.questProgress.map { "${it.key}:${it.value}" }.joinToString(",")
+            val qpStr = data.questProgress.entries.joinToString(",") { "${it.key}:${it.value}" }
             stmt.setString(6, qpStr)
             stmt.setInt(7, data.questCycle)
             stmt.setString(8, data.activeQuests.joinToString(","))
@@ -177,14 +250,21 @@ class PlayerDataManager(private val plugin: FrPass) {
     }
     
     fun addXp(uuid: UUID, amount: Int) {
+        if (amount <= 0) return
         val data = getPlayer(uuid) ?: return
         data.xp += amount
-        
-        var currentTier = plugin.tierManager.getTier(data.level)
-        while (currentTier != null && data.xp >= currentTier.requiredXp) {
+        checkLevelUp(uuid, data)
+        savePlayer(uuid)
+    }
+
+    private fun checkLevelUp(uuid: UUID, data: PlayerData) {
+        var nextTier = plugin.tierManager.getTier(data.level + 1)
+        var leveledUp = false
+        while (nextTier != null && data.xp >= nextTier.requiredXp) {
             val oldLevel = data.level
-            data.xp -= currentTier.requiredXp
+            data.xp -= nextTier.requiredXp
             data.level += 1
+            leveledUp = true
             
             val player = Bukkit.getPlayer(uuid)
             if (player != null) {
@@ -193,24 +273,31 @@ class PlayerDataManager(private val plugin: FrPass) {
                 
                 if (event.isCancelled) {
                     data.level = oldLevel
-                    data.xp += currentTier.requiredXp
+                    data.xp += nextTier.requiredXp
                     break
                 }
                 
+                val newTierLevel = data.level
                 val prefix = plugin.configManager.config.getString("settings.prefix") ?: ""
-                player.sendMessage(player.msg("messages.level-up", 
-                    "%prefix%" to prefix,
-                    "%tier%" to data.level.toString()
-                ))
                 val soundStr = plugin.configManager.config.getString("settings.sounds.level-up")
-                if (soundStr != null && soundStr.isNotEmpty()) {
-                    try {
-                        player.playSound(player.location, Sound.valueOf(soundStr), 1f, 1f)
-                    } catch (_: Exception) {}
-                }
+                plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+                    if (!player.isOnline) return@Consumer
+                    player.sendMessage(player.msg("messages.level-up", 
+                        "%prefix%" to prefix,
+                        "%tier%" to newTierLevel.toString()
+                    ))
+                    if (!soundStr.isNullOrEmpty()) {
+                        try {
+                            player.playSound(player.location, Sound.valueOf(soundStr.uppercase()), 1f, 1f)
+                        } catch (_: Exception) {}
+                    }
+                })
             }
             
-            currentTier = plugin.tierManager.getTier(data.level)
+            nextTier = plugin.tierManager.getTier(data.level + 1)
+        }
+        if (leveledUp) {
+            savePlayer(uuid)
         }
     }
 }

@@ -12,7 +12,6 @@ import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.persistence.PersistentDataType
-import java.util.function.Consumer
 
 class TicketListener(private val plugin: FrPass) : Listener {
 
@@ -36,7 +35,6 @@ class TicketListener(private val plugin: FrPass) : Listener {
         
         item.amount -= 1
         
-        // Grant Premium
         FrPassProvider.get().setPremium(player.uniqueId, true)
         
         val soundName = plugin.configManager.config.getString("settings.sounds.level-up", "ENTITY_PLAYER_LEVELUP") ?: "ENTITY_PLAYER_LEVELUP"
@@ -51,16 +49,20 @@ class TicketListener(private val plugin: FrPass) : Listener {
     @EventHandler
     fun onInventoryClose(event: InventoryCloseEvent) {
         val player = event.player as? Player ?: return
-        plugin.foliaLib.impl.runLater(Consumer { _ ->
-            plugin.ticketManager.processPendingTickets(player)
+        plugin.foliaLib.scheduler.runAtEntityLater(player, Runnable {
+            if (player.isOnline) {
+                plugin.ticketManager.processPendingTickets(player)
+            }
         }, 10L)
     }
 
     @EventHandler
     fun onPlayerJoin(event: PlayerJoinEvent) {
         val player = event.player
-        plugin.foliaLib.impl.runLater(Consumer { _ ->
-            plugin.ticketManager.processPendingTickets(player)
+        plugin.foliaLib.scheduler.runAtEntityLater(player, Runnable {
+            if (player.isOnline) {
+                plugin.ticketManager.processPendingTickets(player)
+            }
         }, 60L)
     }
 }

@@ -5,6 +5,7 @@ import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandMap
 import org.bukkit.command.PluginIdentifiableCommand
+import org.bukkit.command.SimpleCommandMap
 import org.bukkit.plugin.Plugin
 import java.lang.reflect.Field
 
@@ -33,7 +34,8 @@ class DynamicPassCommand(
 
 object CommandAliasUtil {
 
-    private val registeredCommands = mutableListOf<DynamicPassCommand>()
+    private val reservedNames = setOf("frpass", "pass", "battlepass", "frpassadmin")
+    private val registeredCommands = mutableMapOf<String, DynamicPassCommand>()
 
     private fun getCommandMap(): CommandMap? {
         return try {
@@ -46,21 +48,56 @@ object CommandAliasUtil {
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun getKnownCommands(commandMap: CommandMap): MutableMap<String, Command>? {
+        return try {
+            var clazz: Class<*>? = commandMap.javaClass
+            while (clazz != null) {
+                try {
+                    val field = clazz.getDeclaredField("knownCommands")
+                    field.isAccessible = true
+                    return field.get(commandMap) as? MutableMap<String, Command>
+                } catch (_: NoSuchFieldException) {
+                    clazz = clazz.superclass
+                }
+            }
+            if (commandMap is SimpleCommandMap) {
+                val field = SimpleCommandMap::class.java.getDeclaredField("knownCommands")
+                field.isAccessible = true
+                return field.get(commandMap) as? MutableMap<String, Command>
+            }
+            null
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     fun registerAliases(plugin: FrPass) {
         val commandMap = getCommandMap() ?: return
+        val knownCommands = getKnownCommands(commandMap)
+        val fallbackPrefix = plugin.name.lowercase()
+
         val configuredAliases = plugin.configManager.config.getStringList("settings.command-aliases")
             .map { it.trim().removePrefix("/").lowercase() }
-            .filter { it.isNotEmpty() }
+            .filter { it.isNotEmpty() && it !in reservedNames }
             .distinct()
+            .toSet()
+
+        val toRemove = registeredCommands.keys.filter { it !in configuredAliases }
+        for (oldAlias in toRemove) {
+            val cmd = registeredCommands.remove(oldAlias) ?: continue
+            cmd.unregister(commandMap)
+            knownCommands?.remove(oldAlias, cmd)
+            knownCommands?.remove("$fallbackPrefix:$oldAlias", cmd)
+        }
 
         for (alias in configuredAliases) {
-            // Check if already registered or conflicting with default name
-            if (alias == "frpass" || registeredCommands.any { it.name == alias }) continue
+            if (registeredCommands.containsKey(alias)) continue
 
             try {
                 val dynCmd = DynamicPassCommand(alias, plugin)
-                commandMap.register(plugin.name.lowercase(), dynCmd)
-                registeredCommands.add(dynCmd)
+                commandMap.register(fallbackPrefix, dynCmd)
+                registeredCommands[alias] = dynCmd
             } catch (_: Throwable) {}
         }
     }

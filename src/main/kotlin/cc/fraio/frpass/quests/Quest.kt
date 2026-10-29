@@ -12,5 +12,7 @@ data class Quest(
     val target: String?,
     val requiredAmount: Int,
     val rewardXp: Int,
-    val extraRewards: List<String>
+    val extraRewards: List<String>,
+    val material: String? = null,
+    val customModelData: Int = 0
 )

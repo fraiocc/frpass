@@ -1,7 +1,6 @@
 package cc.fraio.frpass.commands
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.msg
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
@@ -33,7 +32,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     return true
                 }
                 val amount = args[2].toIntOrNull()
-                if (amount == null) {
+                if (amount == null || amount <= 0) {
                     sender.sendMessage(sender.msg("messages.invalid-amount"))
                     return true
                 }

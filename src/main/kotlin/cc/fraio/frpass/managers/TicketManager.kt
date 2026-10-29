@@ -1,13 +1,12 @@
 package cc.fraio.frpass.managers
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.ItemBuilder
 import cc.fraio.frpass.utils.msg
 import org.bukkit.Material
+import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
-import org.bukkit.NamespacedKey
 import org.bukkit.persistence.PersistentDataType
 
 class TicketManager(private val plugin: FrPass) {
@@ -15,16 +14,18 @@ class TicketManager(private val plugin: FrPass) {
     val ticketKey = NamespacedKey(plugin, "premium_ticket")
 
     fun getTicketItem(): ItemStack {
-        val matStr = plugin.configManager.config.getString("ticket-item.material", "PAPER") ?: "PAPER"
-        val mat = Material.matchMaterial(matStr) ?: Material.PAPER
-        val name = plugin.configManager.config.getString("ticket-item.name", "&e&lPREMIUM BATTLEPASS TICKET") ?: "&e&lPREMIUM BATTLEPASS TICKET"
-        val lore = plugin.configManager.config.getStringList("ticket-item.lore")
-        val modelData = plugin.configManager.config.getInt("ticket-item.custom-model-data", 0)
+        val config = plugin.configManager.config
+        val matStr = config.getString("premium-ticket.material", "PAPER") ?: "PAPER"
+        val name = config.getString("premium-ticket.name", "&e&lPremium Pass Ticket") ?: "&e&lPremium Pass Ticket"
+        val lore = config.getStringList("premium-ticket.lore")
+        val modelData = config.getInt("premium-ticket.custom-model-data", 0)
+        val glow = config.getBoolean("premium-ticket.glow", true)
 
-        val item = ItemBuilder(mat)
+        val item = ItemBuilder.fromIdentifier(matStr, Material.PAPER)
             .setName(name)
             .setLore(lore)
             .setCustomModelData(modelData)
+            .setGlow(glow)
             .build()
 
         val meta = item.itemMeta

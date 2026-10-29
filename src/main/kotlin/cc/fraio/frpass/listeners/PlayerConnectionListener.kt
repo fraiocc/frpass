@@ -22,8 +22,13 @@ class PlayerConnectionListener(private val plugin: FrPass) : Listener {
 
     @EventHandler
     fun onQuit(event: PlayerQuitEvent) {
-        plugin.playerDataManager.unloadPlayer(event.player.uniqueId)
-        plugin.questTasks.cleanPlayer(event.player.uniqueId)
-        plugin.menuPacketListener.cleanPlayer(event.player.uniqueId)
+        val player = event.player
+        plugin.playerDataManager.unloadPlayer(player.uniqueId)
+        plugin.questTasks.cleanPlayer(player.uniqueId)
+        plugin.menuPacketListener?.cleanPlayer(player.uniqueId)
+        plugin.menuManager.removeOpenMenu(player)
+        plugin.menuManager.stopRerollSession(player)
+        plugin.questEditorManager.closeEditorMenu(player)
+        plugin.questEditorManager.endSession(player)
     }
 }

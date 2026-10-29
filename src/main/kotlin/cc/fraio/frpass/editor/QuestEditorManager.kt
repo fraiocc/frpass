@@ -13,8 +13,13 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.Consumer
 
 class QuestEditorManager(private val plugin: FrPass) {
+
+    companion object {
+        private val VALID_ID_REGEX = Regex("^[a-z0-9_-]{1,64}$")
+    }
 
     val questStorage = QuestStorage(plugin)
 
@@ -41,13 +46,44 @@ class QuestEditorManager(private val plugin: FrPass) {
         activeSessions.remove(player.uniqueId)
     }
 
+    fun refreshOpenEditors() {
+        openEditorMenus.toMap().forEach { (uuid, pair) ->
+            val player = Bukkit.getPlayer(uuid)
+            if (player != null && player.isOnline) {
+                plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+                    if (!player.isOnline) return@Consumer
+                    when (pair.first) {
+                        EditorMenuType.QUEST_LIST -> openQuestListMenu(player, (pair.second as? Int) ?: 1)
+                        EditorMenuType.QUEST_EDIT -> {
+                            val data = pair.second as? QuestEditorData ?: return@Consumer
+                            openQuestEditMenu(player, data)
+                        }
+                    }
+                })
+            } else {
+                openEditorMenus.remove(uuid)
+            }
+        }
+    }
+
+    fun getListContentSlots(): List<Int> {
+        val config = plugin.menuManager.getMenuConfig("editor_list_menu.yml")
+        return config.getIntegerList("menu.quest-slots").ifEmpty {
+            listOf(10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43)
+        }
+    }
+
+    fun getListTotalPages(): Int {
+        val questsCount = plugin.questManager.quests.size
+        val pageSize = getListContentSlots().size.coerceAtLeast(1)
+        return ((questsCount - 1) / pageSize + 1).coerceAtLeast(1)
+    }
+
     fun openQuestListMenu(player: Player, page: Int = 1) {
         val config = plugin.menuManager.getMenuConfig("editor_list_menu.yml")
         val quests = plugin.questManager.quests.values.toList()
-        val questSlots = config.getIntegerList("quest-slots").ifEmpty {
-            listOf(10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43)
-        }
-        val pageSize = questSlots.size
+        val questSlots = getListContentSlots()
+        val pageSize = questSlots.size.coerceAtLeast(1)
         val totalPages = ((quests.size - 1) / pageSize + 1).coerceAtLeast(1)
         val currentPage = page.coerceIn(1, totalPages)
 
@@ -93,12 +129,13 @@ class QuestEditorManager(private val plugin: FrPass) {
         for (i in pageQuests.indices) {
             val quest = pageQuests[i]
             val slot = questSlots[i]
-            val questItem = createQuestDisplayItem(quest, player)
-            inv.setItem(slot, questItem)
+            if (slot in 0 until size) {
+                inv.setItem(slot, createQuestDisplayItem(quest, player))
+            }
         }
 
-        openEditorMenus[player.uniqueId] = Pair(EditorMenuType.QUEST_LIST, currentPage)
         player.openInventory(inv)
+        openEditorMenus[player.uniqueId] = Pair(EditorMenuType.QUEST_LIST, currentPage)
     }
 
     private fun createQuestDisplayItem(quest: Quest, player: Player): org.bukkit.inventory.ItemStack {
@@ -170,63 +207,75 @@ class QuestEditorManager(private val plugin: FrPass) {
         } else {
             listOf("&7ID: &f${data.id}")
         }
-        inv.setItem(idSlot, ItemBuilder.fromIdentifier(idMat).setName(idName, player).setLore(idLore, player).build())
+        if (idSlot in 0 until size) {
+            inv.setItem(idSlot, ItemBuilder.fromIdentifier(idMat).setName(idName, player).setLore(idLore, player).build())
+        }
 
         val nameSlot = config.getInt("menu.items.display_name.slot", 12)
         val nameMat = config.getString("menu.items.display_name.material", "NAME_TAG")!!
         val nameName = config.getString("menu.items.display_name.name", "&bDisplay Name")!!
-        inv.setItem(
-            nameSlot,
-            ItemBuilder.fromIdentifier(nameMat)
-                .setName(nameName, player)
-                .setLore(listOf("&7Current: &f${data.displayName.ifBlank { "None" }}", "", "&eClick to change."), player)
-                .build()
-        )
+        if (nameSlot in 0 until size) {
+            inv.setItem(
+                nameSlot,
+                ItemBuilder.fromIdentifier(nameMat)
+                    .setName(nameName, player)
+                    .setLore(listOf("&7Current: &f${data.displayName.ifBlank { "None" }}", "", "&eClick to change."), player)
+                    .build()
+            )
+        }
 
         val nextType = getNextQuestType(data.type)
         val typeSlot = config.getInt("menu.items.type.slot", 13)
         val typeMat = config.getString("menu.items.type.material", "PAPER")!!
         val typeName = config.getString("menu.items.type.name", "&eQuest Type")!!
-        inv.setItem(
-            typeSlot,
-            ItemBuilder.fromIdentifier(typeMat)
-                .setName(typeName, player)
-                .setLore(listOf("&7Current: &a&l${data.type.name}", "&7Next: &8${nextType.name}", "", "&eClick to switch type."), player)
-                .build()
-        )
+        if (typeSlot in 0 until size) {
+            inv.setItem(
+                typeSlot,
+                ItemBuilder.fromIdentifier(typeMat)
+                    .setName(typeName, player)
+                    .setLore(listOf("&7Current: &a&l${data.type.name}", "&7Next: &8${nextType.name}", "", "&eClick to switch type."), player)
+                    .build()
+            )
+        }
 
         val targetSlot = config.getInt("menu.items.target.slot", 14)
         val targetMat = config.getString("menu.items.target.material", "TARGET")!!
         val targetName = config.getString("menu.items.target.name", "&cTarget")!!
-        inv.setItem(
-            targetSlot,
-            ItemBuilder.fromIdentifier(targetMat)
-                .setName(targetName, player)
-                .setLore(listOf("&7Current: &f${data.target.ifBlank { "None" }}", "", "&eClick to change."), player)
-                .build()
-        )
+        if (targetSlot in 0 until size) {
+            inv.setItem(
+                targetSlot,
+                ItemBuilder.fromIdentifier(targetMat)
+                    .setName(targetName, player)
+                    .setLore(listOf("&7Current: &f${data.target.ifBlank { "None" }}", "", "&eClick to change."), player)
+                    .build()
+            )
+        }
 
         val amountSlot = config.getInt("menu.items.required_amount.slot", 15)
         val amountMat = config.getString("menu.items.required_amount.material", "REPEATER")!!
         val amountName = config.getString("menu.items.required_amount.name", "&aRequired Amount")!!
-        inv.setItem(
-            amountSlot,
-            ItemBuilder.fromIdentifier(amountMat)
-                .setName(amountName, player)
-                .setLore(listOf("&7Current: &b${data.requiredAmount}", "", "&eClick to change."), player)
-                .build()
-        )
+        if (amountSlot in 0 until size) {
+            inv.setItem(
+                amountSlot,
+                ItemBuilder.fromIdentifier(amountMat)
+                    .setName(amountName, player)
+                    .setLore(listOf("&7Current: &b${data.requiredAmount}", "", "&eClick to change."), player)
+                    .build()
+            )
+        }
 
         val xpSlot = config.getInt("menu.items.reward_xp.slot", 21)
         val xpMat = config.getString("menu.items.reward_xp.material", "EXPERIENCE_BOTTLE")!!
         val xpName = config.getString("menu.items.reward_xp.name", "&6Reward XP")!!
-        inv.setItem(
-            xpSlot,
-            ItemBuilder.fromIdentifier(xpMat)
-                .setName(xpName, player)
-                .setLore(listOf("&7Current: &a${data.rewardXp} XP", "", "&eClick to change."), player)
-                .build()
-        )
+        if (xpSlot in 0 until size) {
+            inv.setItem(
+                xpSlot,
+                ItemBuilder.fromIdentifier(xpMat)
+                    .setName(xpName, player)
+                    .setLore(listOf("&7Current: &a${data.rewardXp} XP", "", "&eClick to change."), player)
+                    .build()
+            )
+        }
 
         val rewardsSlot = config.getInt("menu.items.extra_rewards.slot", 23)
         val rewardsMat = config.getString("menu.items.extra_rewards.material", "CHEST")!!
@@ -240,27 +289,35 @@ class QuestEditorManager(private val plugin: FrPass) {
         rewardLore.add("")
         rewardLore.add("&aLeft-Click: &7Add reward")
         rewardLore.add("&cRight-Click: &7Clear all")
-        inv.setItem(rewardsSlot, ItemBuilder.fromIdentifier(rewardsMat).setName(rewardsName, player).setLore(rewardLore, player).build())
+        if (rewardsSlot in 0 until size) {
+            inv.setItem(rewardsSlot, ItemBuilder.fromIdentifier(rewardsMat).setName(rewardsName, player).setLore(rewardLore, player).build())
+        }
 
         val backSlot = config.getInt("menu.items.back_button.slot", 45)
         val backMat = config.getString("menu.items.back_button.material", "ARROW")!!
         val backName = config.getString("menu.items.back_button.name", "&cBack")!!
-        inv.setItem(backSlot, ItemBuilder.fromIdentifier(backMat).setName(backName, player).build())
+        if (backSlot in 0 until size) {
+            inv.setItem(backSlot, ItemBuilder.fromIdentifier(backMat).setName(backName, player).build())
+        }
 
         val saveSlot = config.getInt("menu.items.save_button.slot", 49)
         val saveMat = config.getString("menu.items.save_button.material", "EMERALD_BLOCK")!!
         val saveName = config.getString("menu.items.save_button.name", "&a&lSave Quest")!!
-        inv.setItem(saveSlot, ItemBuilder.fromIdentifier(saveMat).setName(saveName, player).build())
+        if (saveSlot in 0 until size) {
+            inv.setItem(saveSlot, ItemBuilder.fromIdentifier(saveMat).setName(saveName, player).build())
+        }
 
         if (!data.isNew) {
             val delSlot = config.getInt("menu.items.delete_button.slot", 53)
             val delMat = config.getString("menu.items.delete_button.material", "REDSTONE_BLOCK")!!
             val delName = config.getString("menu.items.delete_button.name", "&c&lDelete Quest")!!
-            inv.setItem(delSlot, ItemBuilder.fromIdentifier(delMat).setName(delName, player).build())
+            if (delSlot in 0 until size) {
+                inv.setItem(delSlot, ItemBuilder.fromIdentifier(delMat).setName(delName, player).build())
+            }
         }
 
-        openEditorMenus[player.uniqueId] = Pair(EditorMenuType.QUEST_EDIT, data)
         player.openInventory(inv)
+        openEditorMenus[player.uniqueId] = Pair(EditorMenuType.QUEST_EDIT, data)
     }
 
     fun getNextQuestType(current: QuestType): QuestType {
@@ -270,8 +327,8 @@ class QuestEditorManager(private val plugin: FrPass) {
     }
 
     fun promptInput(player: Player, data: QuestEditorData, inputType: EditorInputType, promptText: String) {
-        player.closeInventory()
         startSession(player, EditorSession(data, inputType, promptText))
+        player.closeInventory()
         player.sendMessage(player.msg("messages.editor.prompt-input", "%prompt%" to promptText))
     }
 
@@ -279,18 +336,23 @@ class QuestEditorManager(private val plugin: FrPass) {
         endSession(player)
         val trimmed = input.trim()
 
-        plugin.foliaLib.impl.runNextTick {
+        plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+            if (!player.isOnline) return@Consumer
             if (trimmed.equals("cancel", ignoreCase = true)) {
                 player.sendMessage(player.msg("messages.editor.cancelled"))
                 openQuestEditMenu(player, session.data)
-                return@runNextTick
+                return@Consumer
             }
 
             val data = session.data
             when (session.inputType) {
                 EditorInputType.ID -> {
                     val formattedId = trimmed.lowercase().replace(" ", "_")
-                    data.id = formattedId
+                    if (VALID_ID_REGEX.matches(formattedId)) {
+                        data.id = formattedId
+                    } else {
+                        player.sendMessage(player.msg("messages.editor.invalid-id"))
+                    }
                 }
                 EditorInputType.DISPLAY_NAME -> {
                     data.displayName = trimmed
@@ -317,7 +379,7 @@ class QuestEditorManager(private val plugin: FrPass) {
             }
 
             openQuestEditMenu(player, data)
-        }
+        })
     }
 }
 

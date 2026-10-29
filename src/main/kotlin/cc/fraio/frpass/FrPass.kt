@@ -1,13 +1,19 @@
 package cc.fraio.frpass
 
+import cc.fraio.frpass.api.FrPassAPI
+import cc.fraio.frpass.api.FrPassProvider
 import cc.fraio.frpass.commands.AdminCommand
 import cc.fraio.frpass.commands.PassCommand
+import cc.fraio.frpass.editor.QuestEditorListener
+import cc.fraio.frpass.editor.QuestEditorManager
 import cc.fraio.frpass.hooks.FrPassExpansion
 import cc.fraio.frpass.hooks.VaultHook
 import cc.fraio.frpass.listeners.InventoryListener
 import cc.fraio.frpass.listeners.MenuPacketListener
 import cc.fraio.frpass.listeners.PlayerConnectionListener
 import cc.fraio.frpass.listeners.QuestListener
+import cc.fraio.frpass.listeners.TicketListener
+import cc.fraio.frpass.managers.AIManager
 import cc.fraio.frpass.managers.ConfigManager
 import cc.fraio.frpass.managers.CycleManager
 import cc.fraio.frpass.managers.DatabaseManager
@@ -15,24 +21,16 @@ import cc.fraio.frpass.managers.LangManager
 import cc.fraio.frpass.managers.PlayerDataManager
 import cc.fraio.frpass.managers.QuestManager
 import cc.fraio.frpass.managers.RewardManager
-import cc.fraio.frpass.managers.TierManager
 import cc.fraio.frpass.managers.TicketManager
+import cc.fraio.frpass.managers.TierManager
 import cc.fraio.frpass.menus.MenuManager
-import cc.fraio.frpass.tasks.QuestTasks
-import cc.fraio.frpass.api.FrPassAPI
-import cc.fraio.frpass.api.FrPassProvider
-import cc.fraio.frpass.editor.QuestEditorManager
-import cc.fraio.frpass.editor.QuestEditorListener
-import cc.fraio.frpass.managers.AIManager
 import cc.fraio.frpass.quests.QuestType
-import cc.fraio.frpass.listeners.TicketListener
+import cc.fraio.frpass.tasks.QuestTasks
 import cc.fraio.frpass.utils.CommandAliasUtil
 import cc.fraio.frpass.utils.FrSync
+import cc.fraio.frpass.utils.ItemBuilder
 import cc.fraio.frpass.utils.UpdateChecker
 import com.tcoded.folialib.FoliaLib
-import com.github.retrooper.packetevents.PacketEvents
-import com.github.retrooper.packetevents.event.PacketListenerPriority
-import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.UUID
@@ -59,22 +57,26 @@ class FrPass : JavaPlugin(), FrPassAPI {
     lateinit var questEditorManager: QuestEditorManager private set
     lateinit var frSync: FrSync private set
     lateinit var foliaLib: FoliaLib private set
-    lateinit var menuPacketListener: MenuPacketListener private set
+    var menuPacketListener: MenuPacketListener? = null
+        private set
     var passCommand: PassCommand? = null
         private set
 
-    override fun onLoad() {
-        PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
-        PacketEvents.getAPI().settings
-            .reEncodeByDefault(false)
-            .checkForUpdates(false)
-        PacketEvents.getAPI().load()
-    }
-
     override fun onEnable() {
+        val pePlugin = server.pluginManager.getPlugin("packetevents")
+        if (pePlugin == null || !pePlugin.isEnabled) {
+            logger.severe("==========================================")
+            logger.severe("PacketEvents was not found on this server!")
+            logger.severe("Please download and install PacketEvents:")
+            logger.severe("https://modrinth.com/plugin/packetevents")
+            logger.severe("Disabling FrPass...")
+            logger.severe("==========================================")
+            server.pluginManager.disablePlugin(this)
+            return
+        }
+
         instance = this
         foliaLib = FoliaLib(this)
-        PacketEvents.getAPI().init()
         
         if (VaultHook.setupEconomy()) {
             logger.info("Vault hooked successfully!")
@@ -102,11 +104,11 @@ class FrPass : JavaPlugin(), FrPassAPI {
         questManager.loadAll()
         
         rewardManager = RewardManager(this)
+        cycleManager = CycleManager(this)
         
         playerDataManager = PlayerDataManager(this)
         playerDataManager.init()
         
-        cycleManager = CycleManager(this)
         menuManager = MenuManager(this)
         questEditorManager = QuestEditorManager(this)
         
@@ -123,15 +125,17 @@ class FrPass : JavaPlugin(), FrPassAPI {
             registerEvents(TicketListener(this@FrPass), this@FrPass)
             registerEvents(QuestEditorListener(this@FrPass), this@FrPass)
         }
-        menuPacketListener = MenuPacketListener(this)
-        PacketEvents.getAPI().eventManager.registerListener(menuPacketListener, PacketListenerPriority.NORMAL)
+        menuPacketListener = MenuPacketListener(this).also { it.register() }
         
         frSync = FrSync(this)
         frSync.start()
         
         val passCmd = PassCommand(this)
         passCommand = passCmd
-        getCommand("frpass")?.setExecutor(passCmd)
+        getCommand("frpass")?.let {
+            it.setExecutor(passCmd)
+            it.tabCompleter = passCmd
+        }
         getCommand("frpassadmin")?.let {
             val adminCmd = AdminCommand(this)
             it.setExecutor(adminCmd)
@@ -152,12 +156,15 @@ class FrPass : JavaPlugin(), FrPassAPI {
     }
 
     fun reloadAll() {
+        ItemBuilder.clearCache()
         configManager.reload()
         langManager.load()
         tierManager.loadAll()
         questManager.loadAll()
+        playerDataManager.syncOnlinePlayers()
         menuManager.loadMenuConfigs()
         menuManager.refreshOpenMenus()
+        questEditorManager.refreshOpenEditors()
         CommandAliasUtil.registerAliases(this)
         if (this::aiManager.isInitialized) {
             aiManager.reload()
@@ -168,8 +175,11 @@ class FrPass : JavaPlugin(), FrPassAPI {
         if (::frSync.isInitialized) {
             frSync.stop()
         }
+        if (::questTasks.isInitialized) {
+            questTasks.stopTasks()
+        }
         if (::playerDataManager.isInitialized) {
-            playerDataManager.saveAllSync()
+            playerDataManager.shutdown()
         }
         if (this::databaseManager.isInitialized) {
             databaseManager.disconnect()
@@ -177,13 +187,13 @@ class FrPass : JavaPlugin(), FrPassAPI {
         if (this::aiManager.isInitialized) {
             aiManager.onDisable()
         }
-        PacketEvents.getAPI().terminate()
+        menuPacketListener?.unregister()
+        menuPacketListener = null
         logger.info("FrPass has been disabled!")
     }
 
-    // API Implementations
     override fun getPlayerLevel(uuid: UUID): Int {
-        return playerDataManager.getPlayer(uuid)?.level ?: 1
+        return playerDataManager.getPlayer(uuid)?.level ?: 0
     }
 
     override fun getPlayerXp(uuid: UUID): Int {
@@ -195,7 +205,9 @@ class FrPass : JavaPlugin(), FrPassAPI {
     }
 
     override fun setPremium(uuid: UUID, premium: Boolean) {
-        playerDataManager.getPlayer(uuid)?.premium = premium
+        val data = playerDataManager.getPlayer(uuid) ?: return
+        data.premium = premium
+        playerDataManager.savePlayer(uuid)
     }
 
     override fun addXp(uuid: UUID, amount: Int) {

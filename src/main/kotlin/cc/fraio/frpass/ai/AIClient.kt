@@ -1,5 +1,8 @@
 package cc.fraio.frpass.ai
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -49,23 +52,29 @@ class AIClient {
         }
         lastRequestTimestamp.set(now)
 
-        val jsonPayload = """
-            {
-                "model": "$modelName",
-                "messages": [
-                    {"role": "system", "content": ${escapeJson(systemPrompt)}},
-                    {"role": "user", "content": ${escapeJson(prompt)}}
-                ],
-                "temperature": $temperature,
-                "max_tokens": $maxTokens
-            }
-        """.trimIndent()
+        val messagesArray = JsonArray().apply {
+            add(JsonObject().apply {
+                addProperty("role", "system")
+                addProperty("content", systemPrompt)
+            })
+            add(JsonObject().apply {
+                addProperty("role", "user")
+                addProperty("content", prompt)
+            })
+        }
+
+        val requestJson = JsonObject().apply {
+            addProperty("model", modelName)
+            add("messages", messagesArray)
+            addProperty("temperature", temperature)
+            addProperty("max_tokens", maxTokens)
+        }
 
         val request = HttpRequest.newBuilder()
             .uri(URI.create(apiUrl))
             .header("Content-Type", "application/json")
             .header("User-Agent", "FrPass-Minecraft-Plugin/1.0 (Java 21)")
-            .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+            .POST(HttpRequest.BodyPublishers.ofString(requestJson.toString()))
             .timeout(Duration.ofSeconds(timeoutSeconds))
             .build()
 
@@ -89,39 +98,19 @@ class AIClient {
     }
 
     fun extractContent(json: String): String {
-        val marker = "\"content\":\""
-        val start = json.indexOf(marker)
-        if (start == -1) return json
-        val contentStart = start + marker.length
-
-        var end = contentStart
-        var escape = false
-        while (end < json.length) {
-            val c = json[end]
-            if (c == '\\' && !escape) {
-                escape = true
-            } else if (c == '\"' && !escape) {
-                break
+        return try {
+            val element = JsonParser.parseString(json)
+            val obj = element.asJsonObject
+            val choices = obj.getAsJsonArray("choices")
+            if (choices != null && choices.size() > 0) {
+                val firstChoice = choices[0].asJsonObject
+                val message = firstChoice.getAsJsonObject("message")
+                message?.get("content")?.asString ?: json
             } else {
-                escape = false
+                json
             }
-            end++
+        } catch (_: Exception) {
+            json
         }
-
-        return json.substring(contentStart, end)
-            .replace("\\n", "\n")
-            .replace("\\r", "\r")
-            .replace("\\t", "\t")
-            .replace("\\\"", "\"")
-            .replace("\\\\", "\\")
-    }
-
-    fun escapeJson(str: String): String {
-        return "\"" + str
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t") + "\""
     }
 }

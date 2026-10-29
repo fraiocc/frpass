@@ -3,10 +3,9 @@ package cc.fraio.frpass.menus
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.ItemBuilder
+import org.bukkit.Bukkit
 import org.bukkit.Material
-import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
-import org.bukkit.inventory.Inventory
 
 class MainMenu(private val plugin: FrPass) {
 
@@ -15,19 +14,18 @@ class MainMenu(private val plugin: FrPass) {
         val title = ColorUtils.colorize(player, config.getString("menu.title", "&8Main Menu")!!)
         val size = config.getInt("menu.size", 27)
 
-        val inv = org.bukkit.Bukkit.createInventory(null, size, title)
+        val inv = Bukkit.createInventory(MenuInventoryHolder(MenuManager.MenuType.MAIN, 1), size, title)
 
         val itemsSection = config.getConfigurationSection("menu.items")
         if (itemsSection != null) {
             for (key in itemsSection.getKeys(false)) {
                 val materialStr = itemsSection.getString("$key.material", "STONE")!!
-                val material = Material.matchMaterial(materialStr) ?: Material.STONE
                 val name = itemsSection.getString("$key.name", "")!!
                 val lore = itemsSection.getStringList("$key.lore")
                 val modelData = itemsSection.getInt("$key.custom-model-data", 0)
                 val slots = itemsSection.getIntegerList("$key.slots")
 
-                val item = ItemBuilder(material)
+                val item = ItemBuilder.fromIdentifier(materialStr, Material.STONE)
                     .setName(name, player)
                     .setLore(lore, player)
                     .setCustomModelData(modelData)

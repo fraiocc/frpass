@@ -1,18 +1,27 @@
 package cc.fraio.frpass.menus
 
 import cc.fraio.frpass.FrPass
+import org.bukkit.Bukkit
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
+import org.bukkit.inventory.Inventory
+import org.bukkit.inventory.InventoryHolder
 import java.io.File
 import java.io.InputStreamReader
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.Consumer
+
+class MenuInventoryHolder(val type: MenuManager.MenuType, val page: Int) : InventoryHolder {
+    override fun getInventory(): Inventory = error("FrPass Menu GUI")
+}
 
 class MenuManager(private val plugin: FrPass) {
     enum class MenuType { MAIN, QUESTS, PASS }
 
-    private val openMenus = ConcurrentHashMap<Player, Pair<MenuType, Int>>()
+    private val openMenus = ConcurrentHashMap<UUID, Pair<MenuType, Int>>()
     private val configCache = ConcurrentHashMap<String, YamlConfiguration>()
-    private val activeRerolls = ConcurrentHashMap<Player, MutableSet<String>>()
+    private val activeRerolls = ConcurrentHashMap<UUID, MutableSet<String>>()
 
     val mainMenu = MainMenu(plugin)
     val questsMenu = QuestsMenu(plugin)
@@ -43,19 +52,9 @@ class MenuManager(private val plugin: FrPass) {
             val file = File(plugin.dataFolder, "menus/$name")
             if (file.exists()) {
                 val config = YamlConfiguration.loadConfiguration(file)
-                val defaultStream = plugin.getResource("menus/$name")
-                if (defaultStream != null) {
+                plugin.getResource("menus/$name")?.use { defaultStream ->
                     val defaultConfig = YamlConfiguration.loadConfiguration(InputStreamReader(defaultStream, Charsets.UTF_8))
-                    var modified = false
-                    for (key in defaultConfig.getKeys(true)) {
-                        if (!config.contains(key)) {
-                            config.set(key, defaultConfig.get(key))
-                            modified = true
-                        }
-                    }
-                    if (modified) {
-                        config.save(file)
-                    }
+                    config.setDefaults(defaultConfig)
                 }
                 configCache[name] = config
             }
@@ -70,35 +69,60 @@ class MenuManager(private val plugin: FrPass) {
                 plugin.saveResource("menus/$name", false)
             }
             val config = YamlConfiguration.loadConfiguration(file)
+            plugin.getResource("menus/$name")?.use { defaultStream ->
+                val defaultConfig = YamlConfiguration.loadConfiguration(InputStreamReader(defaultStream, Charsets.UTF_8))
+                config.setDefaults(defaultConfig)
+            }
             configCache[name] = config
             config
         }
     }
 
+    fun resolveRerollSlot(size: Int, menuConfig: YamlConfiguration): Int {
+        val configured = plugin.configManager.config.getInt("reroll.slot", -1)
+        if (configured in 0 until size) return configured
+
+        val reserved = mutableSetOf<Int>()
+        reserved.addAll(menuConfig.getIntegerList("menu.quest-slots"))
+        reserved.addAll(menuConfig.getIntegerList("menu.items.back_button.slots"))
+        reserved.addAll(menuConfig.getIntegerList("menu.items.prev_page.slots"))
+        reserved.addAll(menuConfig.getIntegerList("menu.items.next_page.slots"))
+
+        val bottomStart = (size - 9).coerceAtLeast(0)
+        val candidates = listOf(4, 5, 6, 7, 8, 3, 2, 1, 0).map { bottomStart + it }.filter { it in 0 until size }
+        return candidates.firstOrNull { it !in reserved } ?: (bottomStart + 4).coerceAtMost(size - 1)
+    }
+
     fun setOpenMenu(player: Player, type: MenuType, page: Int) {
-        openMenus[player] = Pair(type, page)
+        openMenus[player.uniqueId] = Pair(type, page)
     }
 
     fun getOpenMenu(player: Player): Pair<MenuType, Int>? {
-        return openMenus[player]
+        return openMenus[player.uniqueId]
     }
 
     fun isPluginMenu(player: Player): Boolean {
-        return openMenus.containsKey(player)
+        return openMenus.containsKey(player.uniqueId)
     }
 
     fun removeOpenMenu(player: Player) {
-        openMenus.remove(player)
+        openMenus.remove(player.uniqueId)
     }
 
     fun refreshOpenMenus() {
-        openMenus.toMap().forEach { (player, pair) ->
-            if (player.isOnline) {
-                when (pair.first) {
-                    MenuType.MAIN -> openMainMenu(player)
-                    MenuType.QUESTS -> openQuestsMenu(player, pair.second)
-                    MenuType.PASS -> openPassMenu(player, pair.second)
-                }
+        openMenus.toMap().forEach { (uuid, pair) ->
+            val player = Bukkit.getPlayer(uuid)
+            if (player != null && player.isOnline) {
+                plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+                    if (!player.isOnline) return@Consumer
+                    when (pair.first) {
+                        MenuType.MAIN -> openMainMenu(player)
+                        MenuType.QUESTS -> openQuestsMenu(player, pair.second)
+                        MenuType.PASS -> openPassMenu(player, pair.second)
+                    }
+                })
+            } else {
+                openMenus.remove(uuid)
             }
         }
     }
@@ -107,13 +131,12 @@ class MenuManager(private val plugin: FrPass) {
     fun openQuestsMenu(player: Player, page: Int = 1) = questsMenu.open(player, page)
     fun openPassMenu(player: Player, page: Int = 1) = passMenu.open(player, page)
 
-    // Reroll Session Management
-    fun isRerollSessionActive(player: Player): Boolean = activeRerolls.containsKey(player)
-    fun getRerollSelection(player: Player): MutableSet<String>? = activeRerolls[player]
+    fun isRerollSessionActive(player: Player): Boolean = activeRerolls.containsKey(player.uniqueId)
+    fun getRerollSelection(player: Player): MutableSet<String>? = activeRerolls[player.uniqueId]
     fun startRerollSession(player: Player) {
-        activeRerolls[player] = mutableSetOf()
+        activeRerolls[player.uniqueId] = ConcurrentHashMap.newKeySet()
     }
     fun stopRerollSession(player: Player) {
-        activeRerolls.remove(player)
+        activeRerolls.remove(player.uniqueId)
     }
 }

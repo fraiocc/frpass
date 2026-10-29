@@ -27,35 +27,29 @@ class LangManager(private val plugin: FrPass) {
             } catch (_: Exception) {}
         }
 
+        plugin.getResource("lang/$lang.yml")?.use { defaultStream ->
+            val defaultConfig = YamlConfiguration.loadConfiguration(InputStreamReader(defaultStream, Charsets.UTF_8))
+            cacheConfig(defaultConfig)
+        } ?: plugin.getResource("lang/en.yml")?.use { fallbackStream ->
+            val fallbackConfig = YamlConfiguration.loadConfiguration(InputStreamReader(fallbackStream, Charsets.UTF_8))
+            cacheConfig(fallbackConfig)
+        }
+
         if (file.exists()) {
             val config = YamlConfiguration.loadConfiguration(file)
-
-            // Auto-append missing default keys from jar without overwriting user changes
-            val defaultStream = plugin.getResource("lang/$lang.yml")
-            if (defaultStream != null) {
-                val defaultConfig = YamlConfiguration.loadConfiguration(InputStreamReader(defaultStream, Charsets.UTF_8))
-                var modified = false
-                for (key in defaultConfig.getKeys(true)) {
-                    if (!config.contains(key)) {
-                        config.set(key, defaultConfig.get(key))
-                        modified = true
-                    }
-                }
-                if (modified) {
-                    config.save(file)
-                }
-            }
-
-            // Cache all messages
-            for (key in config.getKeys(true)) {
-                if (config.isString(key)) {
-                    messages[key] = config.getString(key) ?: ""
-                } else if (config.isList(key)) {
-                    messages[key] = config.getStringList(key).joinToString("\n")
-                }
-            }
+            cacheConfig(config)
         } else {
             plugin.logger.warning("[Lang] Language file lang/$lang.yml not found.")
+        }
+    }
+
+    private fun cacheConfig(config: YamlConfiguration) {
+        for (key in config.getKeys(true)) {
+            if (config.isString(key)) {
+                messages[key] = config.getString(key) ?: ""
+            } else if (config.isList(key)) {
+                messages[key] = config.getStringList(key).joinToString("\n")
+            }
         }
     }
 

@@ -1,7 +1,6 @@
 package cc.fraio.frpass.editor
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.quests.Quest
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
 
@@ -26,27 +25,19 @@ class QuestStorage(private val plugin: FrPass) {
 
             val config = YamlConfiguration.loadConfiguration(targetFile)
             
-            // If renamed remove old key
             if (editorData.originalId != null && editorData.originalId != quest.id) {
                 config.set("quests.${editorData.originalId}", null)
             }
 
             val path = "quests.${quest.id}"
             config.set("$path.type", quest.type.name)
-            if (quest.displayName != null) {
-                config.set("$path.display-name", quest.displayName)
-            } else {
-                config.set("$path.display-name", null)
-            }
-            if (quest.target != null) {
-                config.set("$path.target", quest.target)
-            } else {
-                config.set("$path.target", null)
-            }
+            config.set("$path.display-name", quest.displayName)
+            config.set("$path.target", quest.target)
             config.set("$path.required-amount", quest.requiredAmount)
             config.set("$path.reward-xp", quest.rewardXp)
             config.set("$path.extra-rewards", quest.extraRewards)
 
+            plugin.frSync.suppress()
             config.save(targetFile)
             plugin.questManager.loadAll()
             true
@@ -61,6 +52,7 @@ class QuestStorage(private val plugin: FrPass) {
             val file = findFileForQuest(questId) ?: return false
             val config = YamlConfiguration.loadConfiguration(file)
             config.set("quests.$questId", null)
+            plugin.frSync.suppress()
             config.save(file)
             plugin.questManager.loadAll()
             true
@@ -72,7 +64,7 @@ class QuestStorage(private val plugin: FrPass) {
 
     private fun findFileForQuest(questId: String?): File? {
         if (questId == null) return null
-        val files = questsFolder.listFiles()?.filter { it.extension == "yml" } ?: return null
+        val files = questsFolder.listFiles()?.filter { it.extension.equals("yml", ignoreCase = true) } ?: return null
         for (file in files) {
             val config = YamlConfiguration.loadConfiguration(file)
             if (config.contains("quests.$questId")) {

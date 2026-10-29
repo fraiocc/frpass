@@ -60,6 +60,11 @@ class ItemBuilder {
         private var nexoInitialized = false
         private val cachedNexoStacks = java.util.concurrent.ConcurrentHashMap<String, ItemStack>()
 
+        fun clearCache() {
+            cachedNexoStacks.clear()
+            nexoInitialized = false
+        }
+
         private fun initNexoReflection() {
             if (nexoInitialized) return
             nexoInitialized = true

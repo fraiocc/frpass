@@ -1,9 +1,8 @@
 package cc.fraio.frpass.utils
 
 import cc.fraio.frpass.FrPass
-import org.bukkit.Bukkit
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 import java.util.function.Consumer
 
 class UpdateChecker(private val plugin: FrPass) {
@@ -14,9 +13,9 @@ class UpdateChecker(private val plugin: FrPass) {
     var downloadLink = "https://github.com/$repo/releases/latest"
 
     fun checkForUpdates() {
-        plugin.foliaLib.impl.runAsync(Consumer { task ->
+        plugin.foliaLib.scheduler.runAsync(Consumer { _ ->
             try {
-                val url = URL("https://api.github.com/repos/$repo/releases/latest")
+                val url = URI.create("https://api.github.com/repos/$repo/releases/latest").toURL()
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
@@ -28,7 +27,6 @@ class UpdateChecker(private val plugin: FrPass) {
                     val response = reader.readText()
                     reader.close()
 
-                    // Parse JSON manually using regex to find tag_name
                     val regex = "\"tag_name\"\\s*:\\s*\"([^\"]+)\"".toRegex()
                     val match = regex.find(response)
                     
@@ -38,7 +36,6 @@ class UpdateChecker(private val plugin: FrPass) {
                         
                         val currentVersion = plugin.description.version.replace("v", "")
                         
-                        // Compare ignoring v
                         if (latestVersion != currentVersion) {
                             updateAvailable = true
                             plugin.logger.warning("==========================================")

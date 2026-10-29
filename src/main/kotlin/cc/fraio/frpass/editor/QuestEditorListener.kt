@@ -1,8 +1,6 @@
 package cc.fraio.frpass.editor
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.quests.Quest
-import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.msg
 import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -13,7 +11,7 @@ import org.bukkit.event.Listener
 import org.bukkit.event.inventory.ClickType
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
-import org.bukkit.event.player.AsyncPlayerChatEvent
+import org.bukkit.event.inventory.InventoryDragEvent
 
 class QuestEditorListener(private val plugin: FrPass) : Listener {
 
@@ -47,35 +45,36 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
     }
 
     private fun handleListClick(player: Player, slot: Int, page: Int, clickType: ClickType) {
+        val config = plugin.menuManager.getMenuConfig("editor_list_menu.yml")
+        val prevSlots = config.getIntegerList("menu.items.prev_page.slots").ifEmpty { listOf(48) }
+        val nextSlots = config.getIntegerList("menu.items.next_page.slots").ifEmpty { listOf(50) }
+        val createSlots = config.getIntegerList("menu.items.create_quest.slots").ifEmpty { listOf(49) }
+        val closeSlots = config.getIntegerList("menu.items.close_button.slots").ifEmpty { listOf(51) }
+        val contentSlots = editorManager.getListContentSlots()
+        val totalPages = editorManager.getListTotalPages()
+
         when (slot) {
-            48 -> {
+            in prevSlots -> {
                 if (page > 1) editorManager.openQuestListMenu(player, page - 1)
             }
-            50 -> {
-                editorManager.openQuestListMenu(player, page + 1)
+            in nextSlots -> {
+                if (page < totalPages) editorManager.openQuestListMenu(player, page + 1)
             }
-            49 -> {
+            in createSlots -> {
                 val newData = QuestEditorData(isNew = true)
                 editorManager.openQuestEditMenu(player, newData)
             }
-            51 -> {
+            in closeSlots -> {
                 player.closeInventory()
             }
             else -> {
-                val contentSlots = mutableListOf<Int>()
-                for (row in 1..4) {
-                    for (col in 1..7) {
-                        contentSlots.add(row * 9 + col)
-                    }
-                }
                 val indexInGrid = contentSlots.indexOf(slot)
                 if (indexInGrid != -1) {
                     val quests = plugin.questManager.quests.values.toList()
-                    val totalIndex = (page - 1) * 28 + indexInGrid
+                    val totalIndex = (page - 1) * contentSlots.size + indexInGrid
                     if (totalIndex in quests.indices) {
                         val quest = quests[totalIndex]
                         if (clickType == ClickType.SHIFT_RIGHT) {
-                            // Delete Quest
                             val deleted = editorManager.questStorage.deleteQuest(quest.id)
                             if (deleted) {
                                 player.sendMessage(player.msg("messages.editor.quest-deleted", "%quest%" to quest.id))
@@ -94,43 +93,55 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
     }
 
     private fun handleEditClick(player: Player, slot: Int, data: QuestEditorData, clickType: ClickType) {
+        val config = plugin.menuManager.getMenuConfig("editor_edit_menu.yml")
+        val idSlot = config.getInt("menu.items.id.slot", 11)
+        val nameSlot = config.getInt("menu.items.display_name.slot", 12)
+        val typeSlot = config.getInt("menu.items.type.slot", 13)
+        val targetSlot = config.getInt("menu.items.target.slot", 14)
+        val amountSlot = config.getInt("menu.items.required_amount.slot", 15)
+        val xpSlot = config.getInt("menu.items.reward_xp.slot", 21)
+        val rewardsSlot = config.getInt("menu.items.extra_rewards.slot", 23)
+        val backSlot = config.getInt("menu.items.back_button.slot", 45)
+        val saveSlot = config.getInt("menu.items.save_button.slot", 49)
+        val delSlot = config.getInt("menu.items.delete_button.slot", 53)
+
         when (slot) {
-            11 -> {
+            idSlot -> {
                 if (data.isNew) {
-                    editorManager.promptInput(player, data, EditorInputType.ID, "Enter quest ID:")
+                    editorManager.promptInput(player, data, EditorInputType.ID, player.msg("messages.editor.prompt-id"))
                 } else {
-                    player.sendMessage(ColorUtils.colorize("&cExisting quest ID cannot be changed."))
+                    player.sendMessage(player.msg("messages.editor.id-immutable"))
                 }
             }
-            12 -> {
-                editorManager.promptInput(player, data, EditorInputType.DISPLAY_NAME, "Enter quest display name:")
+            nameSlot -> {
+                editorManager.promptInput(player, data, EditorInputType.DISPLAY_NAME, player.msg("messages.editor.prompt-display-name"))
             }
-            13 -> {
+            typeSlot -> {
                 data.type = editorManager.getNextQuestType(data.type)
                 editorManager.openQuestEditMenu(player, data)
             }
-            14 -> {
-                editorManager.promptInput(player, data, EditorInputType.TARGET, "Enter target (or 'none' to clear):")
+            targetSlot -> {
+                editorManager.promptInput(player, data, EditorInputType.TARGET, player.msg("messages.editor.prompt-target"))
             }
-            15 -> {
-                editorManager.promptInput(player, data, EditorInputType.REQUIRED_AMOUNT, "Enter required amount:")
+            amountSlot -> {
+                editorManager.promptInput(player, data, EditorInputType.REQUIRED_AMOUNT, player.msg("messages.editor.prompt-required-amount"))
             }
-            21 -> {
-                editorManager.promptInput(player, data, EditorInputType.REWARD_XP, "Enter reward XP:")
+            xpSlot -> {
+                editorManager.promptInput(player, data, EditorInputType.REWARD_XP, player.msg("messages.editor.prompt-reward-xp"))
             }
-            23 -> {
+            rewardsSlot -> {
                 if (clickType.isRightClick) {
                     data.extraRewards.clear()
-                    player.sendMessage(ColorUtils.colorize("&cExtra rewards cleared."))
+                    player.sendMessage(player.msg("messages.editor.rewards-cleared"))
                     editorManager.openQuestEditMenu(player, data)
                 } else {
-                    editorManager.promptInput(player, data, EditorInputType.ADD_EXTRA_REWARD, "Enter reward (e.g. [MONEY] 1000):")
+                    editorManager.promptInput(player, data, EditorInputType.ADD_EXTRA_REWARD, player.msg("messages.editor.prompt-extra-reward"))
                 }
             }
-            45 -> {
+            backSlot -> {
                 editorManager.openQuestListMenu(player, 1)
             }
-            49 -> {
+            saveSlot -> {
                 if (data.id.isBlank()) {
                     player.sendMessage(player.msg("messages.editor.enter-id-first"))
                     return
@@ -143,7 +154,7 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
                     player.sendMessage(player.msg("messages.editor.quest-save-failed"))
                 }
             }
-            53 -> {
+            delSlot -> {
                 if (!data.isNew && data.originalId != null) {
                     val deleted = editorManager.questStorage.deleteQuest(data.originalId)
                     if (deleted) {
@@ -158,7 +169,7 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
-    fun onInventoryDrag(event: org.bukkit.event.inventory.InventoryDragEvent) {
+    fun onInventoryDrag(event: InventoryDragEvent) {
         val topInv = event.view.topInventory
         val player = event.whoClicked as? Player ?: return
         if (topInv.holder is EditorInventoryHolder || editorManager.isEditorMenu(player)) {
@@ -183,15 +194,5 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
         event.isCancelled = true
         val plainText = PlainTextComponentSerializer.plainText().serialize(event.message())
         editorManager.applySessionInput(player, session, plainText)
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST)
-    fun onLegacyChat(event: AsyncPlayerChatEvent) {
-        val player = event.player
-        val session = editorManager.getActiveSession(player) ?: return
-
-        event.isCancelled = true
-        val message = event.message
-        editorManager.applySessionInput(player, session, message)
     }
 }

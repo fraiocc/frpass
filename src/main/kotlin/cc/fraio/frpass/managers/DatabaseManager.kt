@@ -62,7 +62,6 @@ class DatabaseManager(private val plugin: FrPass) {
                 setupPoolDefaults(config)
             }
             else -> {
-                // Default to SQLite
                 val file = File(plugin.dataFolder, plugin.config.getString("database.file", "database.db")!!)
                 config.driverClassName = "org.sqlite.JDBC"
                 config.jdbcUrl = "jdbc:sqlite:${file.absolutePath}"
@@ -100,7 +99,7 @@ class DatabaseManager(private val plugin: FrPass) {
             CREATE TABLE IF NOT EXISTS player_data (
                 uuid VARCHAR(36) PRIMARY KEY,
                 xp INT DEFAULT 0,
-                level INT DEFAULT 1,
+                level INT DEFAULT 0,
                 premium BOOLEAN DEFAULT $boolType,
                 claimed_tiers TEXT,
                 claimed_premium_tiers TEXT,
@@ -145,7 +144,7 @@ class DatabaseManager(private val plugin: FrPass) {
                 if (!cols.contains(col)) {
                     try {
                         stmt.execute("ALTER TABLE player_data ADD COLUMN $col $type")
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                     }
                 }
             }
