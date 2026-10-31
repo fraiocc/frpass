@@ -3,6 +3,12 @@ menu:
   title_edit: "&8Edit Quest: %id%"
   size: 54
 
+  placeholders:
+    not-set: "Not set"
+    none: "None"
+    empty-rewards: "&8(None)"
+    reward-entry: "&8- &f%reward%"
+
   items:
     background:
       material: GRAY_STAINED_GLASS_PANE
@@ -14,36 +20,67 @@ menu:
       material: OAK_SIGN
       name: "&fQuest ID"
       slot: 11
+      lore-new:
+        - "&7Current: &f%id%"
+        - ""
+        - "&eClick to set ID."
+      lore-edit:
+        - "&7ID: &f%id%"
 
     display_name:
       material: NAME_TAG
       name: "&bDisplay Name"
       slot: 12
+      lore:
+        - "&7Current: &f%display_name%"
+        - ""
+        - "&eClick to change."
 
     type:
       material: PAPER
       name: "&eQuest Type"
       slot: 13
+      lore:
+        - "&7Current: &a&l%type%"
+        - "&7Next: &8%next_type%"
+        - ""
+        - "&eClick to switch type."
 
     target:
       material: TARGET
       name: "&cTarget"
       slot: 14
+      lore:
+        - "&7Current: &f%target%"
+        - ""
+        - "&eClick to change."
 
     required_amount:
       material: REPEATER
       name: "&aRequired Amount"
       slot: 15
+      lore:
+        - "&7Current: &b%required%"
+        - ""
+        - "&eClick to change."
 
     reward_xp:
       material: EXPERIENCE_BOTTLE
       name: "&6Reward XP"
       slot: 21
+      lore:
+        - "&7Current: &a%xp% XP"
+        - ""
+        - "&eClick to change."
 
     extra_rewards:
       material: CHEST
       name: "&dExtra Rewards"
       slot: 23
+      lore-footer:
+        - ""
+        - "&aLeft-Click: &7Add reward"
+        - "&cRight-Click: &7Clear all"
 
     back_button:
       material: ARROW

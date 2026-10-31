@@ -25,7 +25,7 @@ class AIClient {
         CRITICAL FORMAT RULES:
         1. Always return clean, valid YAML starting with 'quests:'.
         2. Supported Quest Types: BREAK_BLOCK, PLACE_BLOCK, KILL_MOB, KILL_PLAYER, FISH, WALK, PLAYTIME, CRAFT, CONSUME, BREED_ANIMAL, ENCHANT_ITEM, EXP_EARN, SHEAR_SHEEP.
-        3. Reward Format: [MONEY] <amount>, [XP] <amount>, [MESSAGE] <text>, [COMMAND] <cmd>, [ITEM] <item>
+        3. Reward Format: [MONEY] <amount>, [XP] <amount>, [MESSAGE] <text>, [BROADCAST] <text>, [COMMAND] <cmd>, [PLAYER_COMMAND] <cmd>, [SOUND] <sound> [volume] [pitch], [TITLE] <title>|<subtitle>, [ITEM] <item>
         Output ONLY the YAML block, no conversational filler.
     """.trimIndent()
 

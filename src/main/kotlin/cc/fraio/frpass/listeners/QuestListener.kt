@@ -2,7 +2,9 @@ package cc.fraio.frpass.listeners
 
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.quests.QuestType
+import org.bukkit.Material
 import org.bukkit.block.Block
+import org.bukkit.block.data.Ageable
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -25,6 +27,25 @@ import java.util.UUID
 
 class QuestListener(private val plugin: FrPass) : Listener {
 
+    companion object {
+        private val VERTICAL_PLANTS = setOf(
+            Material.SUGAR_CANE,
+            Material.BAMBOO,
+            Material.BAMBOO_SAPLING,
+            Material.CACTUS,
+            Material.KELP,
+            Material.KELP_PLANT,
+            Material.TWISTING_VINES,
+            Material.TWISTING_VINES_PLANT,
+            Material.WEEPING_VINES,
+            Material.WEEPING_VINES_PLANT,
+            Material.CAVE_VINES,
+            Material.CAVE_VINES_PLANT,
+            Material.CHORUS_PLANT,
+            Material.CHORUS_FLOWER
+        )
+    }
+
     private data class BlockPos(val world: UUID, val x: Int, val y: Int, val z: Int) {
         constructor(block: Block) : this(block.world.uid, block.x, block.y, block.z)
     }
@@ -39,8 +60,29 @@ class QuestListener(private val plugin: FrPass) : Listener {
 
     @EventHandler(ignoreCancelled = true)
     fun onBlockBreak(event: BlockBreakEvent) {
-        if (placedBlocks.remove(BlockPos(event.block))) return
-        plugin.questManager.handleProgress(event.player, QuestType.BREAK_BLOCK, event.block.type.name, 1)
+        val block = event.block
+        val type = block.type
+
+        if (type in VERTICAL_PLANTS) {
+            var hadPlacedInColumn = false
+            val worldId = block.world.uid
+            val x = block.x
+            val z = block.z
+            for (dy in -1..16) {
+                if (placedBlocks.remove(BlockPos(worldId, x, block.y + dy, z))) {
+                    hadPlacedInColumn = true
+                }
+            }
+            if (hadPlacedInColumn) return
+        } else {
+            if (placedBlocks.remove(BlockPos(block))) return
+            val blockData = block.blockData
+            if (blockData is Ageable && blockData.age < blockData.maximumAge) {
+                return
+            }
+        }
+
+        plugin.questManager.handleProgress(event.player, QuestType.BREAK_BLOCK, type.name, 1)
     }
 
     @EventHandler(ignoreCancelled = true)

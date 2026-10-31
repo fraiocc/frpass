@@ -18,6 +18,16 @@ class PlayerConnectionListener(private val plugin: FrPass) : Listener {
             val link = plugin.updateChecker.downloadLink
             player.sendMessage(player.msg("messages.update-available", "%link%" to link))
         }
+
+        if (plugin.configManager.config.getBoolean("settings.notify-unclaimed-on-join", true)) {
+            plugin.foliaLib.scheduler.runAtEntityLater(player, Runnable {
+                if (!player.isOnline) return@Runnable
+                val unclaimed = plugin.playerDataManager.getUnclaimedRewardCount(player.uniqueId)
+                if (unclaimed > 0) {
+                    player.sendMessage(player.msg("messages.unclaimed-rewards-reminder", "%amount%" to unclaimed.toString()))
+                }
+            }, 60L)
+        }
     }
 
     @EventHandler

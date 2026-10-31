@@ -139,7 +139,8 @@ class QuestEditorManager(private val plugin: FrPass) {
     }
 
     private fun createQuestDisplayItem(quest: Quest, player: Player): org.bukkit.inventory.ItemStack {
-        val mat = when (quest.type) {
+        val config = plugin.menuManager.getMenuConfig("editor_list_menu.yml")
+        val defaultMat = when (quest.type) {
             QuestType.BREAK_BLOCK -> Material.DIAMOND_PICKAXE
             QuestType.PLACE_BLOCK -> Material.BRICKS
             QuestType.KILL_MOB -> Material.IRON_SWORD
@@ -155,20 +156,35 @@ class QuestEditorManager(private val plugin: FrPass) {
             QuestType.SHEAR_SHEEP -> Material.SHEARS
         }
 
-        val lore = mutableListOf(
-            "&7Type: &e${quest.type.name}",
-            "&7Target: &f${quest.target ?: "None"}",
-            "&7Required: &b${quest.requiredAmount}",
-            "&7XP: &a${quest.rewardXp}",
-            "&7Extra Rewards: &6${quest.extraRewards.size}",
-            "",
-            "&eLeft-Click: &7Edit",
-            "&cShift + Right-Click: &7Delete"
-        )
+        val targetNone = config.getString("menu.quest-item.target-none", "None") ?: "None"
+        val rawName = config.getString("menu.quest-item.name", "&e%quest%") ?: "&e%quest%"
+        val rawLore = config.getStringList("menu.quest-item.lore").ifEmpty {
+            listOf(
+                "&7Type: &e%type%",
+                "&7Target: &f%target%",
+                "&7Required: &b%required%",
+                "&7XP: &a%xp%",
+                "&7Extra Rewards: &6%rewards%",
+                "",
+                "&eLeft-Click: &7Edit",
+                "&cShift + Right-Click: &7Delete"
+            )
+        }
 
-        return ItemBuilder(mat)
-            .setName("&e${quest.displayName ?: quest.id}", player)
-            .setLore(lore, player)
+        val formattedName = rawName.replace("%quest%", quest.displayName ?: quest.id)
+        val formattedLore = rawLore.map { line ->
+            line.replace("%type%", quest.type.name)
+                .replace("%target%", quest.target ?: targetNone)
+                .replace("%required%", quest.requiredAmount.toString())
+                .replace("%xp%", quest.rewardXp.toString())
+                .replace("%rewards%", quest.extraRewards.size.toString())
+        }
+
+        val matIdentifier = quest.material ?: defaultMat.name
+        return ItemBuilder.fromIdentifier(matIdentifier, defaultMat)
+            .setName(formattedName, player)
+            .setLore(formattedLore, player)
+            .setCustomModelData(quest.customModelData)
             .build()
     }
 
@@ -199,14 +215,25 @@ class QuestEditorManager(private val plugin: FrPass) {
             }
         }
 
+        val notSetText = config.getString("menu.placeholders.not-set", "Not set") ?: "Not set"
+        val noneText = config.getString("menu.placeholders.none", "None") ?: "None"
+        val emptyRewardsText = config.getString("menu.placeholders.empty-rewards", "&8(None)") ?: "&8(None)"
+        val rewardEntryFormat = config.getString("menu.placeholders.reward-entry", "&8- &f%reward%") ?: "&8- &f%reward%"
+
         val idSlot = config.getInt("menu.items.id.slot", 11)
         val idMat = config.getString("menu.items.id.material", "OAK_SIGN")!!
         val idName = config.getString("menu.items.id.name", "&fQuest ID")!!
-        val idLore = if (data.isNew) {
-            listOf("&7Current: &f${data.id.ifBlank { "Not set" }}", "", "&eClick to set ID.")
+        val idValue = data.id.ifBlank { notSetText }
+        val idLoreRaw = if (data.isNew) {
+            config.getStringList("menu.items.id.lore-new").ifEmpty {
+                listOf("&7Current: &f%id%", "", "&eClick to set ID.")
+            }
         } else {
-            listOf("&7ID: &f${data.id}")
+            config.getStringList("menu.items.id.lore-edit").ifEmpty {
+                listOf("&7ID: &f%id%")
+            }
         }
+        val idLore = idLoreRaw.map { it.replace("%id%", idValue) }
         if (idSlot in 0 until size) {
             inv.setItem(idSlot, ItemBuilder.fromIdentifier(idMat).setName(idName, player).setLore(idLore, player).build())
         }
@@ -214,12 +241,15 @@ class QuestEditorManager(private val plugin: FrPass) {
         val nameSlot = config.getInt("menu.items.display_name.slot", 12)
         val nameMat = config.getString("menu.items.display_name.material", "NAME_TAG")!!
         val nameName = config.getString("menu.items.display_name.name", "&bDisplay Name")!!
+        val nameLore = config.getStringList("menu.items.display_name.lore").ifEmpty {
+            listOf("&7Current: &f%display_name%", "", "&eClick to change.")
+        }.map { it.replace("%display_name%", data.displayName.ifBlank { noneText }) }
         if (nameSlot in 0 until size) {
             inv.setItem(
                 nameSlot,
                 ItemBuilder.fromIdentifier(nameMat)
                     .setName(nameName, player)
-                    .setLore(listOf("&7Current: &f${data.displayName.ifBlank { "None" }}", "", "&eClick to change."), player)
+                    .setLore(nameLore, player)
                     .build()
             )
         }
@@ -228,12 +258,15 @@ class QuestEditorManager(private val plugin: FrPass) {
         val typeSlot = config.getInt("menu.items.type.slot", 13)
         val typeMat = config.getString("menu.items.type.material", "PAPER")!!
         val typeName = config.getString("menu.items.type.name", "&eQuest Type")!!
+        val typeLore = config.getStringList("menu.items.type.lore").ifEmpty {
+            listOf("&7Current: &a&l%type%", "&7Next: &8%next_type%", "", "&eClick to switch type.")
+        }.map { it.replace("%type%", data.type.name).replace("%next_type%", nextType.name) }
         if (typeSlot in 0 until size) {
             inv.setItem(
                 typeSlot,
                 ItemBuilder.fromIdentifier(typeMat)
                     .setName(typeName, player)
-                    .setLore(listOf("&7Current: &a&l${data.type.name}", "&7Next: &8${nextType.name}", "", "&eClick to switch type."), player)
+                    .setLore(typeLore, player)
                     .build()
             )
         }
@@ -241,12 +274,15 @@ class QuestEditorManager(private val plugin: FrPass) {
         val targetSlot = config.getInt("menu.items.target.slot", 14)
         val targetMat = config.getString("menu.items.target.material", "TARGET")!!
         val targetName = config.getString("menu.items.target.name", "&cTarget")!!
+        val targetLore = config.getStringList("menu.items.target.lore").ifEmpty {
+            listOf("&7Current: &f%target%", "", "&eClick to change.")
+        }.map { it.replace("%target%", data.target.ifBlank { noneText }) }
         if (targetSlot in 0 until size) {
             inv.setItem(
                 targetSlot,
                 ItemBuilder.fromIdentifier(targetMat)
                     .setName(targetName, player)
-                    .setLore(listOf("&7Current: &f${data.target.ifBlank { "None" }}", "", "&eClick to change."), player)
+                    .setLore(targetLore, player)
                     .build()
             )
         }
@@ -254,12 +290,15 @@ class QuestEditorManager(private val plugin: FrPass) {
         val amountSlot = config.getInt("menu.items.required_amount.slot", 15)
         val amountMat = config.getString("menu.items.required_amount.material", "REPEATER")!!
         val amountName = config.getString("menu.items.required_amount.name", "&aRequired Amount")!!
+        val amountLore = config.getStringList("menu.items.required_amount.lore").ifEmpty {
+            listOf("&7Current: &b%required%", "", "&eClick to change.")
+        }.map { it.replace("%required%", data.requiredAmount.toString()) }
         if (amountSlot in 0 until size) {
             inv.setItem(
                 amountSlot,
                 ItemBuilder.fromIdentifier(amountMat)
                     .setName(amountName, player)
-                    .setLore(listOf("&7Current: &b${data.requiredAmount}", "", "&eClick to change."), player)
+                    .setLore(amountLore, player)
                     .build()
             )
         }
@@ -267,12 +306,15 @@ class QuestEditorManager(private val plugin: FrPass) {
         val xpSlot = config.getInt("menu.items.reward_xp.slot", 21)
         val xpMat = config.getString("menu.items.reward_xp.material", "EXPERIENCE_BOTTLE")!!
         val xpName = config.getString("menu.items.reward_xp.name", "&6Reward XP")!!
+        val xpLore = config.getStringList("menu.items.reward_xp.lore").ifEmpty {
+            listOf("&7Current: &a%xp% XP", "", "&eClick to change.")
+        }.map { it.replace("%xp%", data.rewardXp.toString()) }
         if (xpSlot in 0 until size) {
             inv.setItem(
                 xpSlot,
                 ItemBuilder.fromIdentifier(xpMat)
                     .setName(xpName, player)
-                    .setLore(listOf("&7Current: &a${data.rewardXp} XP", "", "&eClick to change."), player)
+                    .setLore(xpLore, player)
                     .build()
             )
         }
@@ -282,13 +324,14 @@ class QuestEditorManager(private val plugin: FrPass) {
         val rewardsName = config.getString("menu.items.extra_rewards.name", "&dExtra Rewards")!!
         val rewardLore = mutableListOf<String>()
         if (data.extraRewards.isEmpty()) {
-            rewardLore.add("&8(None)")
+            rewardLore.add(emptyRewardsText)
         } else {
-            data.extraRewards.forEach { rewardLore.add("&8- &f$it") }
+            data.extraRewards.forEach { rewardLore.add(rewardEntryFormat.replace("%reward%", it)) }
         }
-        rewardLore.add("")
-        rewardLore.add("&aLeft-Click: &7Add reward")
-        rewardLore.add("&cRight-Click: &7Clear all")
+        val rewardFooter = config.getStringList("menu.items.extra_rewards.lore-footer").ifEmpty {
+            listOf("", "&aLeft-Click: &7Add reward", "&cRight-Click: &7Clear all")
+        }
+        rewardLore.addAll(rewardFooter)
         if (rewardsSlot in 0 until size) {
             inv.setItem(rewardsSlot, ItemBuilder.fromIdentifier(rewardsMat).setName(rewardsName, player).setLore(rewardLore, player).build())
         }

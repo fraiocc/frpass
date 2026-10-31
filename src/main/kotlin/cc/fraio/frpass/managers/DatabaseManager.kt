@@ -14,21 +14,22 @@ class DatabaseManager(private val plugin: FrPass) {
         private set
 
     fun connect() {
-        databaseType = plugin.config.getString("database.type", "SQLITE")!!.uppercase()
+        val cfg = plugin.configManager.config
+        databaseType = cfg.getString("database.type", "SQLITE")!!.uppercase()
         val config = HikariConfig()
         
         when (databaseType) {
             "MYSQL" -> {
-                val host = plugin.config.getString("database.host", "localhost")
-                val port = plugin.config.getInt("database.port", 3306)
-                val db = plugin.config.getString("database.database", "frpass")
+                val host = cfg.getString("database.host", "localhost")
+                val port = cfg.getInt("database.port", 3306)
+                val db = cfg.getString("database.database", "frpass")
                 
                 config.driverClassName = "com.mysql.cj.jdbc.Driver"
                 config.jdbcUrl = "jdbc:mysql://$host:$port/$db"
-                config.username = plugin.config.getString("database.username", "root")
-                config.password = plugin.config.getString("database.password", "")
+                config.username = cfg.getString("database.username", "root")
+                config.password = cfg.getString("database.password", "")
                 
-                config.addDataSourceProperty("useSSL", plugin.config.getBoolean("database.useSSL", false))
+                config.addDataSourceProperty("useSSL", cfg.getBoolean("database.useSSL", false))
                 config.addDataSourceProperty("autoReconnect", "true")
                 config.addDataSourceProperty("useUnicode", "true")
                 config.addDataSourceProperty("characterEncoding", "UTF-8")
@@ -36,33 +37,33 @@ class DatabaseManager(private val plugin: FrPass) {
                 setupPoolDefaults(config)
             }
             "MARIADB" -> {
-                val host = plugin.config.getString("database.host", "localhost")
-                val port = plugin.config.getInt("database.port", 3306)
-                val db = plugin.config.getString("database.database", "frpass")
+                val host = cfg.getString("database.host", "localhost")
+                val port = cfg.getInt("database.port", 3306)
+                val db = cfg.getString("database.database", "frpass")
                 
                 config.driverClassName = "org.mariadb.jdbc.Driver"
                 config.jdbcUrl = "jdbc:mariadb://$host:$port/$db"
-                config.username = plugin.config.getString("database.username", "root")
-                config.password = plugin.config.getString("database.password", "")
+                config.username = cfg.getString("database.username", "root")
+                config.password = cfg.getString("database.password", "")
                 
-                config.addDataSourceProperty("useSSL", plugin.config.getBoolean("database.useSSL", false))
+                config.addDataSourceProperty("useSSL", cfg.getBoolean("database.useSSL", false))
                 
                 setupPoolDefaults(config)
             }
             "POSTGRESQL", "POSTGRES" -> {
-                val host = plugin.config.getString("database.host", "localhost")
-                val port = plugin.config.getInt("database.port", 5432)
-                val db = plugin.config.getString("database.database", "frpass")
+                val host = cfg.getString("database.host", "localhost")
+                val port = cfg.getInt("database.port", 5432)
+                val db = cfg.getString("database.database", "frpass")
                 
                 config.driverClassName = "org.postgresql.Driver"
                 config.jdbcUrl = "jdbc:postgresql://$host:$port/$db"
-                config.username = plugin.config.getString("database.username", "root")
-                config.password = plugin.config.getString("database.password", "")
+                config.username = cfg.getString("database.username", "root")
+                config.password = cfg.getString("database.password", "")
                 
                 setupPoolDefaults(config)
             }
             else -> {
-                val file = File(plugin.dataFolder, plugin.config.getString("database.file", "database.db")!!)
+                val file = File(plugin.dataFolder, cfg.getString("database.file", "database.db")!!)
                 config.driverClassName = "org.sqlite.JDBC"
                 config.jdbcUrl = "jdbc:sqlite:${file.absolutePath}"
                 config.maximumPoolSize = 1
@@ -83,9 +84,10 @@ class DatabaseManager(private val plugin: FrPass) {
     }
 
     private fun setupPoolDefaults(config: HikariConfig) {
-        config.maximumPoolSize = plugin.config.getInt("database.maximumPoolSize", 10)
-        config.minimumIdle = plugin.config.getInt("database.minimumIdle", 2)
-        config.connectionTimeout = plugin.config.getLong("database.connectionTimeout", 30000L)
+        val cfg = plugin.configManager.config
+        config.maximumPoolSize = cfg.getInt("database.maximumPoolSize", 10)
+        config.minimumIdle = cfg.getInt("database.minimumIdle", 2)
+        config.connectionTimeout = cfg.getLong("database.connectionTimeout", 30000L)
         config.addDataSourceProperty("cachePrepStmts", "true")
         config.addDataSourceProperty("prepStmtCacheSize", "250")
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048")

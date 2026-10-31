@@ -153,10 +153,11 @@ class PlayerDataManager(private val plugin: FrPass) {
                                 data.questCycle = currentCycle
                                 assignQuests(data)
 
-                                conn.prepareStatement("INSERT INTO player_data (uuid, xp, level, premium, claimed_tiers, claimed_premium_tiers, quests_progress, quest_cycle, active_quests, pending_tickets) VALUES (?, 0, 0, 0, '', '', '', ?, ?, 0)").use { insert ->
+                                conn.prepareStatement("INSERT INTO player_data (uuid, xp, level, premium, claimed_tiers, claimed_premium_tiers, quests_progress, quest_cycle, active_quests, pending_tickets) VALUES (?, 0, 0, ?, '', '', '', ?, ?, 0)").use { insert ->
                                     insert.setString(1, uuid.toString())
-                                    insert.setInt(2, data.questCycle)
-                                    insert.setString(3, data.activeQuests.joinToString(","))
+                                    insert.setBoolean(2, false)
+                                    insert.setInt(3, data.questCycle)
+                                    insert.setString(4, data.activeQuests.joinToString(","))
                                     insert.executeUpdate()
                                 }
 
@@ -255,6 +256,51 @@ class PlayerDataManager(private val plugin: FrPass) {
         data.xp += amount
         checkLevelUp(uuid, data)
         savePlayer(uuid)
+    }
+
+    fun setXp(uuid: UUID, xp: Int) {
+        if (xp < 0) return
+        val data = getPlayer(uuid) ?: return
+        data.xp = xp
+        checkLevelUp(uuid, data)
+        savePlayer(uuid)
+    }
+
+    fun setLevel(uuid: UUID, level: Int) {
+        if (level < 0) return
+        val data = getPlayer(uuid) ?: return
+        data.level = level
+        checkLevelUp(uuid, data)
+        savePlayer(uuid)
+    }
+
+    fun resetPlayer(uuid: UUID) {
+        val data = getPlayer(uuid) ?: return
+        data.xp = 0
+        data.level = 0
+        data.premium = false
+        data.claimedTiers.clear()
+        data.claimedPremiumTiers.clear()
+        data.questProgress.clear()
+        data.questCycle = plugin.cycleManager.getCurrentCycle()
+        assignQuests(data)
+        savePlayer(uuid)
+    }
+
+    fun getUnclaimedRewardCount(uuid: UUID): Int {
+        val data = getPlayer(uuid) ?: return 0
+        var count = 0
+        for (tier in plugin.tierManager.tiers.values) {
+            if (tier.level <= data.level) {
+                if (tier.freeRewards.isNotEmpty() && !data.claimedTiers.contains(tier.level)) {
+                    count++
+                }
+                if (data.premium && tier.premiumRewards.isNotEmpty() && !data.claimedPremiumTiers.contains(tier.level)) {
+                    count++
+                }
+            }
+        }
+        return count
     }
 
     private fun checkLevelUp(uuid: UUID, data: PlayerData) {

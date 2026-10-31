@@ -6,6 +6,7 @@ import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.ItemBuilder
 import org.bukkit.Bukkit
 import org.bukkit.Material
+import org.bukkit.Sound
 import org.bukkit.entity.Player
 import java.util.function.Consumer
 
@@ -20,7 +21,11 @@ class RewardManager(private val plugin: FrPass) {
                 
                 when (type) {
                     "COMMAND" -> executeCommandReward(player, content)
+                    "PLAYER_COMMAND" -> executePlayerCommandReward(player, content)
                     "MESSAGE" -> executeMessageReward(player, content)
+                    "BROADCAST" -> executeBroadcastReward(player, content)
+                    "SOUND" -> executeSoundReward(player, content)
+                    "TITLE" -> executeTitleReward(player, content)
                     "MONEY" -> executeMoneyReward(player, content)
                     "XP" -> executeXpReward(player, content)
                     "ITEM" -> executeItemReward(player, content)
@@ -31,15 +36,63 @@ class RewardManager(private val plugin: FrPass) {
     }
 
     private fun executeCommandReward(player: Player, content: String) {
-        val cmd = content.replace("%player%", player.name)
+        val cmd = content.replace("%player%", player.name).removePrefix("/")
         plugin.foliaLib.scheduler.runNextTick(Consumer { _ ->
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+        })
+    }
+
+    private fun executePlayerCommandReward(player: Player, content: String) {
+        val cmd = content.replace("%player%", player.name).removePrefix("/")
+        plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+            if (player.isOnline) {
+                player.performCommand(cmd)
+            }
         })
     }
 
     private fun executeMessageReward(player: Player, content: String) {
         val msg = content.replace("%player%", player.name)
         player.sendMessage(ColorUtils.colorize(player, msg))
+    }
+
+    private fun executeBroadcastReward(player: Player, content: String) {
+        val formatted = ColorUtils.colorize(player, content.replace("%player%", player.name))
+        for (online in Bukkit.getOnlinePlayers()) {
+            online.sendMessage(formatted)
+        }
+        Bukkit.getConsoleSender().sendMessage(formatted)
+    }
+
+    private fun executeSoundReward(player: Player, content: String) {
+        val parts = content.split(" ").filter { it.isNotBlank() }
+        if (parts.isEmpty()) return
+        val soundName = parts[0].uppercase()
+        val volume = parts.getOrNull(1)?.toFloatOrNull() ?: 1f
+        val pitch = parts.getOrNull(2)?.toFloatOrNull() ?: 1f
+
+        plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+            if (!player.isOnline) return@Consumer
+            try {
+                val sound = Sound.valueOf(soundName)
+                player.playSound(player.location, sound, volume, pitch)
+            } catch (_: Exception) {
+                plugin.logger.warning("Invalid sound '$soundName' in [SOUND] reward.")
+            }
+        })
+    }
+
+    private fun executeTitleReward(player: Player, content: String) {
+        val replaced = content.replace("%player%", player.name)
+        val parts = replaced.split("|", limit = 2)
+        val title = ColorUtils.colorize(player, parts[0].trim())
+        val subtitle = if (parts.size > 1) ColorUtils.colorize(player, parts[1].trim()) else ""
+
+        plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+            if (player.isOnline) {
+                player.sendTitle(title, subtitle, 10, 70, 20)
+            }
+        })
     }
 
     private fun executeMoneyReward(player: Player, content: String) {

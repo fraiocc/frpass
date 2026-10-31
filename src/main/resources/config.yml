@@ -15,6 +15,7 @@ settings:
   lang: "en"
   prefix: "&aFrPass &8» &7"
   generate-default-files: true
+  notify-unclaimed-on-join: true
   sounds:
     level-up: "ENTITY_PLAYER_LEVELUP"
     quest-complete: "ENTITY_EXPERIENCE_ORB_PICKUP"
@@ -84,3 +85,7 @@ reroll:
 
 ai:
   enabled: true
+
+placeholders:
+  premium-true: "&aYes"
+  premium-false: "&cNo"

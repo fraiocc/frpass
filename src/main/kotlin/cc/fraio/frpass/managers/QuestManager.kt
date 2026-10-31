@@ -85,6 +85,20 @@ class QuestManager(private val plugin: FrPass) {
         }
     }
 
+    fun completeQuest(player: Player, questId: String): Boolean {
+        val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return false
+        val quest = quests[questId] ?: return false
+        val currentProgress = data.questProgress[quest.id] ?: 0
+        if (currentProgress >= quest.requiredAmount) return false
+
+        data.questProgress[quest.id] = quest.requiredAmount
+        val event = FrPassQuestProgressEvent(player, quest, currentProgress, quest.requiredAmount, true)
+        Bukkit.getPluginManager().callEvent(event)
+        onQuestComplete(player, quest)
+        plugin.playerDataManager.savePlayer(player.uniqueId)
+        return true
+    }
+
     private fun onQuestComplete(player: Player, quest: Quest) {
         plugin.playerDataManager.addXp(player.uniqueId, quest.rewardXp)
         plugin.rewardManager.giveRewards(player, quest.extraRewards)

@@ -2,6 +2,19 @@ menu:
   title: "&8Quest Editor (Page %page%/%total%)"
   size: 54
 
+  quest-item:
+    name: "&e%quest%"
+    target-none: "None"
+    lore:
+      - "&7Type: &e%type%"
+      - "&7Target: &f%target%"
+      - "&7Required: &b%required%"
+      - "&7XP: &a%xp%"
+      - "&7Extra Rewards: &6%rewards%"
+      - ""
+      - "&eLeft-Click: &7Edit"
+      - "&cShift + Right-Click: &7Delete"
+
   items:
     background:
       material: GRAY_STAINED_GLASS_PANE

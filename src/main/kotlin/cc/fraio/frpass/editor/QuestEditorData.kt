@@ -12,6 +12,8 @@ data class QuestEditorData(
     var requiredAmount: Int = 10,
     var rewardXp: Int = 50,
     var extraRewards: MutableList<String> = mutableListOf(),
+    var material: String? = null,
+    var customModelData: Int = 0,
     var isNew: Boolean = true
 ) {
     companion object {
@@ -25,6 +27,8 @@ data class QuestEditorData(
                 requiredAmount = quest.requiredAmount,
                 rewardXp = quest.rewardXp,
                 extraRewards = quest.extraRewards.toMutableList(),
+                material = quest.material,
+                customModelData = quest.customModelData,
                 isNew = false
             )
         }
@@ -38,7 +42,9 @@ data class QuestEditorData(
             target = target.ifBlank { null },
             requiredAmount = requiredAmount.coerceAtLeast(1),
             rewardXp = rewardXp.coerceAtLeast(0),
-            extraRewards = extraRewards
+            extraRewards = extraRewards,
+            material = material,
+            customModelData = customModelData
         )
     }
 }
