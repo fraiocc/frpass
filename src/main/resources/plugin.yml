@@ -7,7 +7,8 @@ prefix: FrPass
 authors: [ Fraio ]
 website: "https://fraio.cc"
 description: Advanced, completely customizable packet-based Battlepass.
-softdepend: [packetevents, Vault, PlaceholderAPI, MusoPlugin, Nexo]
+depend: [packetevents]
+softdepend: [Vault, PlaceholderAPI, MusoPlugin, Nexo]
 
 commands:
   frpass:
