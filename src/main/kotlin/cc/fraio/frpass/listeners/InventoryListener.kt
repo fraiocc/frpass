@@ -119,6 +119,10 @@ class InventoryListener(private val plugin: FrPass) : Listener {
 
         var count = 0
         for (questId in selection.toList()) {
+            val q = plugin.questManager.quests[questId]
+            val prog = data.questProgress[questId] ?: 0
+            if (q != null && prog >= q.requiredAmount) continue
+
             val idx = data.activeQuests.indexOf(questId)
             if (idx != -1 && allAvailableQuests.isNotEmpty()) {
                 data.questProgress.remove(questId)
