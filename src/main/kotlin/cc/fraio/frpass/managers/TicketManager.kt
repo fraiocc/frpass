@@ -38,24 +38,35 @@ class TicketManager(private val plugin: FrPass) {
     }
 
     fun giveTicket(player: Player, amount: Int = 1) {
+        if (amount <= 0) return
         val ticket = getTicketItem()
-        
+        val maxStack = ticket.maxStackSize.coerceAtLeast(1)
+
+        var remaining = amount
         var given = 0
         var pending = 0
-        
-        for (i in 1..amount) {
-            if (player.inventory.firstEmpty() == -1) {
-                pending++
+
+        while (remaining > 0) {
+            val toAdd = remaining.coerceAtMost(maxStack)
+            val stack = ticket.clone().apply { this.amount = toAdd }
+            val leftovers = player.inventory.addItem(stack)
+            if (leftovers.isEmpty()) {
+                given += toAdd
+                remaining -= toAdd
             } else {
-                player.inventory.addItem(ticket.clone())
-                given++
+                val notAdded = leftovers.values.sumOf { it.amount }
+                val successfullyAdded = toAdd - notAdded
+                given += successfullyAdded
+                remaining -= successfullyAdded
+                pending += remaining
+                break
             }
         }
-        
+
         if (given > 0) {
             player.sendMessage(player.msg("messages.ticket-received", "%amount%" to given.toString()))
         }
-        
+
         if (pending > 0) {
             val pd = plugin.playerDataManager.getPlayer(player.uniqueId)
             if (pd != null) {
@@ -65,24 +76,36 @@ class TicketManager(private val plugin: FrPass) {
             player.sendMessage(player.msg("messages.ticket-queued", "%amount%" to pending.toString()))
         }
     }
-    
+
     fun processPendingTickets(player: Player) {
         val pd = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
         if (pd.pendingTickets <= 0) return
-        
+
         val ticket = getTicketItem()
-        ticket.amount = 1
-        
-        var given = 0
-        while (pd.pendingTickets > 0 && player.inventory.firstEmpty() != -1) {
-            player.inventory.addItem(ticket.clone())
-            pd.pendingTickets--
-            given++
+        val maxStack = ticket.maxStackSize.coerceAtLeast(1)
+        var totalGiven = 0
+
+        while (pd.pendingTickets > 0) {
+            val toAdd = pd.pendingTickets.coerceAtMost(maxStack)
+            val stack = ticket.clone().apply { this.amount = toAdd }
+            val leftovers = player.inventory.addItem(stack)
+            if (leftovers.isEmpty()) {
+                totalGiven += toAdd
+                pd.pendingTickets -= toAdd
+            } else {
+                val notAdded = leftovers.values.sumOf { it.amount }
+                val successfullyAdded = toAdd - notAdded
+                if (successfullyAdded > 0) {
+                    totalGiven += successfullyAdded
+                    pd.pendingTickets -= successfullyAdded
+                }
+                break
+            }
         }
-        
-        if (given > 0) {
+
+        if (totalGiven > 0) {
             plugin.playerDataManager.savePlayer(player.uniqueId)
-            player.sendMessage(player.msg("messages.ticket-dequeued", "%amount%" to given.toString()))
+            player.sendMessage(player.msg("messages.ticket-dequeued", "%amount%" to totalGiven.toString()))
         }
     }
 }

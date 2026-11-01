@@ -13,7 +13,7 @@ menu:
     background:
       material: GRAY_STAINED_GLASS_PANE
       name: " "
-      slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19, 20, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 50, 51, 52]
+      slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19, 20, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 50, 51, 52]
       custom-model-data: 0
 
     id:
@@ -72,6 +72,18 @@ menu:
         - "&7Current: &a%xp% XP"
         - ""
         - "&eClick to change."
+
+    icon:
+      material: ITEM_FRAME
+      name: "&eQuest Icon"
+      slot: 22
+      lore:
+        - "&7Material: &f%material%"
+        - "&7Model Data: &f%model_data%"
+        - ""
+        - "&aLeft-Click: &7Set Icon Material"
+        - "&eRight-Click: &7Set Model Data"
+        - "&cShift-Right-Click: &7Reset Icon"
 
     extra_rewards:
       material: CHEST

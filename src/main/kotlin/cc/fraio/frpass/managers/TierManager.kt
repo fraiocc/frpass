@@ -3,6 +3,7 @@ package cc.fraio.frpass.managers
 import cc.fraio.frpass.FrPass
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 data class Tier(
     val level: Int, 
@@ -16,13 +17,13 @@ data class Tier(
 )
 
 class TierManager(private val plugin: FrPass) {
-    val tiers = mutableMapOf<Int, Tier>()
+    val tiers = ConcurrentHashMap<Int, Tier>()
 
     fun loadAll() {
         tiers.clear()
         val file = File(plugin.dataFolder, "core/tiers.yml")
         if (!file.exists()) {
-            file.parentFile.mkdirs()
+            file.parentFile?.mkdirs()
             plugin.saveResource("core/tiers.yml", false)
         }
         val config = YamlConfiguration.loadConfiguration(file)
@@ -30,7 +31,7 @@ class TierManager(private val plugin: FrPass) {
         val section = config.getConfigurationSection("tiers") ?: return
         for (key in section.getKeys(false)) {
             val level = key.toIntOrNull() ?: continue
-            val requiredXp = section.getInt("$key.required-xp", 1000)
+            val requiredXp = section.getInt("$key.required-xp", 1000).coerceAtLeast(1)
             val free = section.getStringList("$key.free-rewards")
             val premium = section.getStringList("$key.premium-rewards")
             

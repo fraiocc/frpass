@@ -7,6 +7,7 @@ import org.bukkit.block.Block
 import org.bukkit.block.data.Ageable
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPistonExtendEvent
@@ -58,24 +59,14 @@ class QuestListener(private val plugin: FrPass) : Listener {
         })
     )
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onBlockBreak(event: BlockBreakEvent) {
         val block = event.block
         val type = block.type
 
-        if (type in VERTICAL_PLANTS) {
-            var hadPlacedInColumn = false
-            val worldId = block.world.uid
-            val x = block.x
-            val z = block.z
-            for (dy in -1..16) {
-                if (placedBlocks.remove(BlockPos(worldId, x, block.y + dy, z))) {
-                    hadPlacedInColumn = true
-                }
-            }
-            if (hadPlacedInColumn) return
-        } else {
-            if (placedBlocks.remove(BlockPos(block))) return
+        if (placedBlocks.remove(BlockPos(block))) return
+
+        if (type !in VERTICAL_PLANTS) {
             val blockData = block.blockData
             if (blockData is Ageable && blockData.age < blockData.maximumAge) {
                 return
@@ -85,7 +76,7 @@ class QuestListener(private val plugin: FrPass) : Listener {
         plugin.questManager.handleProgress(event.player, QuestType.BREAK_BLOCK, type.name, 1)
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onBlockPlace(event: BlockPlaceEvent) {
         placedBlocks.add(BlockPos(event.blockPlaced))
         plugin.questManager.handleProgress(event.player, QuestType.PLACE_BLOCK, event.block.type.name, 1)
@@ -112,7 +103,9 @@ class QuestListener(private val plugin: FrPass) : Listener {
     @EventHandler
     fun onEntityDeath(event: EntityDeathEvent) {
         val killer = event.entity.killer ?: return
+        if (event.entity.hasMetadata("NPC")) return
         if (event.entity is Player) {
+            if (killer.uniqueId == event.entity.uniqueId) return
             plugin.questManager.handleProgress(killer, QuestType.KILL_PLAYER, null, 1)
         } else {
             plugin.questManager.handleProgress(killer, QuestType.KILL_MOB, event.entity.type.name, 1)

@@ -8,12 +8,11 @@ class CycleManager(private val plugin: FrPass) {
     fun getCurrentCycle(): Int {
         val interval = plugin.configManager.config.getString("quest-system.rotate-interval", "DAILY")?.uppercase()
         val now = Instant.now().atZone(ZoneId.systemDefault())
+        val epochDay = now.toLocalDate().toEpochDay()
         return if (interval == "WEEKLY") {
-            // Days since epoch / 7
-            (now.toEpochSecond() / (86400 * 7)).toInt()
+            (epochDay / 7).toInt()
         } else {
-            // Days since epoch
-            (now.toEpochSecond() / 86400).toInt()
+            epochDay.toInt()
         }
     }
 }

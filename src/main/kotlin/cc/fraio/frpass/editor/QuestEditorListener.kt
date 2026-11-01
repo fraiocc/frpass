@@ -100,6 +100,7 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
         val targetSlot = config.getInt("menu.items.target.slot", 14)
         val amountSlot = config.getInt("menu.items.required_amount.slot", 15)
         val xpSlot = config.getInt("menu.items.reward_xp.slot", 21)
+        val iconSlot = config.getInt("menu.items.icon.slot", 22)
         val rewardsSlot = config.getInt("menu.items.extra_rewards.slot", 23)
         val backSlot = config.getInt("menu.items.back_button.slot", 45)
         val saveSlot = config.getInt("menu.items.save_button.slot", 49)
@@ -128,6 +129,18 @@ class QuestEditorListener(private val plugin: FrPass) : Listener {
             }
             xpSlot -> {
                 editorManager.promptInput(player, data, EditorInputType.REWARD_XP, player.msg("messages.editor.prompt-reward-xp"))
+            }
+            iconSlot -> {
+                if (clickType == ClickType.SHIFT_RIGHT) {
+                    data.material = null
+                    data.customModelData = 0
+                    player.sendMessage(player.msg("messages.editor.icon-reset"))
+                    editorManager.openQuestEditMenu(player, data)
+                } else if (clickType.isRightClick) {
+                    editorManager.promptInput(player, data, EditorInputType.CUSTOM_MODEL_DATA, player.msg("messages.editor.prompt-custom-model-data"))
+                } else {
+                    editorManager.promptInput(player, data, EditorInputType.ICON_MATERIAL, player.msg("messages.editor.prompt-icon-material"))
+                }
             }
             rewardsSlot -> {
                 if (clickType.isRightClick) {

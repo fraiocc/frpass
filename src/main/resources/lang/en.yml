@@ -37,6 +37,7 @@ messages:
   reroll-no-available-quests: "%prefix%&cNo available replacement quests found to reroll!"
   reroll-success: "%prefix%&aSuccessfully rerolled %count% quest(s)!"
   reroll-cancelled: "%prefix%&cQuest reroll selection cancelled."
+  reroll-already-completed: "%prefix%&cYou cannot reroll an already completed quest!"
   no-permission: "%prefix%&cYou do not have permission to use this command."
   update-available: "%prefix%&aNew Update Available! Download: &n%link%"
   usage-addxp: "%prefix%&cUsage: /frpassadmin addxp <player> <amount>"
@@ -63,6 +64,9 @@ messages:
     prompt-required-amount: "Enter required amount:"
     prompt-reward-xp: "Enter reward XP:"
     prompt-extra-reward: "Enter reward (e.g. [MONEY] 1000):"
+    icon-reset: "%prefix%&aQuest icon reset to default."
+    prompt-icon-material: "Enter icon material/identifier (or 'none' to clear):"
+    prompt-custom-model-data: "Enter custom model data (number):"
   ai:
     help-header: "&8&m----------------------------------------\n&6&lFrPass AI &7» &eCommands:"
     help-create: "  &8» &e/frpassadmin ai create [file.yml] <prompt> &7- Generate new quest"

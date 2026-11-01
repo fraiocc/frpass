@@ -17,6 +17,7 @@ class TicketListener(private val plugin: FrPass) : Listener {
 
     @EventHandler
     fun onInteract(event: PlayerInteractEvent) {
+        if (event.hand != org.bukkit.inventory.EquipmentSlot.HAND) return
         if (event.action != Action.RIGHT_CLICK_AIR && event.action != Action.RIGHT_CLICK_BLOCK) return
         
         val player = event.player
@@ -33,7 +34,11 @@ class TicketListener(private val plugin: FrPass) : Listener {
             return
         }
         
-        item.amount -= 1
+        if (item.amount > 1) {
+            item.amount -= 1
+        } else {
+            player.inventory.setItemInMainHand(null)
+        }
         
         FrPassProvider.get().setPremium(player.uniqueId, true)
         

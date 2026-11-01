@@ -143,7 +143,14 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         val totalIndex = ((page - 1) * questSlots.size) + slotIndexInPage
 
         if (totalIndex in activeQuests.indices) {
-            val questId = activeQuests[totalIndex].id
+            val quest = activeQuests[totalIndex]
+            val currentProgress = data.questProgress[quest.id] ?: 0
+            if (currentProgress >= quest.requiredAmount) {
+                player.sendMessage(player.msg("messages.reroll-already-completed"))
+                return
+            }
+
+            val questId = quest.id
             val selection = plugin.menuManager.getRerollSelection(player) ?: return
             val limit = plugin.configManager.config.getInt("reroll.limit", 3)
 
@@ -190,6 +197,7 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         isPremiumReward: Boolean
     ) {
         val count = minOf(freeCount, premiumCount)
+        if (count <= 0 || slotIndex < 0 || slotIndex >= count) return
         val tierLevel = ((page - 1) * count) + slotIndex + 1
         val tier = plugin.tierManager.getTier(tierLevel) ?: return
 
@@ -197,6 +205,10 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         val canClaim = data.level >= tierLevel && (!isPremiumReward || data.premium)
 
         if (canClaim && !alreadyClaimed) {
+            val event = FrPassTierClaimEvent(player, tierLevel, isPremiumReward)
+            Bukkit.getPluginManager().callEvent(event)
+            if (event.isCancelled) return
+
             if (isPremiumReward) {
                 data.claimedPremiumTiers.add(tierLevel)
                 plugin.rewardManager.giveRewards(player, tier.premiumRewards)
@@ -206,7 +218,6 @@ class InventoryListener(private val plugin: FrPass) : Listener {
             }
 
             plugin.playerDataManager.savePlayer(player.uniqueId)
-            Bukkit.getPluginManager().callEvent(FrPassTierClaimEvent(player, tierLevel, isPremiumReward))
             playClaimSound(player)
             plugin.menuManager.openPassMenu(player, page)
         }

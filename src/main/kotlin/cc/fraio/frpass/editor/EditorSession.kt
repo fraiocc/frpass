@@ -6,7 +6,9 @@ enum class EditorInputType {
     TARGET,
     REQUIRED_AMOUNT,
     REWARD_XP,
-    ADD_EXTRA_REWARD
+    ADD_EXTRA_REWARD,
+    ICON_MATERIAL,
+    CUSTOM_MODEL_DATA
 }
 
 data class EditorSession(

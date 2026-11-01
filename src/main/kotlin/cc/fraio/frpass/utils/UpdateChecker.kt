@@ -18,6 +18,7 @@ class UpdateChecker(private val plugin: FrPass) {
                 val url = URI.create("https://api.github.com/repos/$repo/releases/latest").toURL()
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
+                connection.setRequestProperty("User-Agent", "FrPass-UpdateChecker")
                 connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
                 connection.connectTimeout = 5000
                 connection.readTimeout = 5000

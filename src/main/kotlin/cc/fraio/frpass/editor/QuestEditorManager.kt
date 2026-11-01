@@ -336,6 +336,34 @@ class QuestEditorManager(private val plugin: FrPass) {
             inv.setItem(rewardsSlot, ItemBuilder.fromIdentifier(rewardsMat).setName(rewardsName, player).setLore(rewardLore, player).build())
         }
 
+        val iconSlot = config.getInt("menu.items.icon.slot", 22)
+        val iconMat = data.material ?: config.getString("menu.items.icon.material", "ITEM_FRAME")!!
+        val iconName = config.getString("menu.items.icon.name", "&eQuest Icon")!!
+        val matValue = data.material ?: noneText
+        val modelDataValue = data.customModelData.toString()
+        val iconLore = config.getStringList("menu.items.icon.lore").ifEmpty {
+            listOf(
+                "&7Material: &f%material%",
+                "&7Model Data: &f%model_data%",
+                "",
+                "&aLeft-Click: &7Set Icon Material",
+                "&eRight-Click: &7Set Model Data",
+                "&cShift-Right-Click: &7Reset Icon"
+            )
+        }.map {
+            it.replace("%material%", matValue).replace("%model_data%", modelDataValue)
+        }
+        if (iconSlot in 0 until size) {
+            inv.setItem(
+                iconSlot,
+                ItemBuilder.fromIdentifier(iconMat, Material.ITEM_FRAME)
+                    .setName(iconName, player)
+                    .setLore(iconLore, player)
+                    .setCustomModelData(data.customModelData)
+                    .build()
+            )
+        }
+
         val backSlot = config.getInt("menu.items.back_button.slot", 45)
         val backMat = config.getString("menu.items.back_button.material", "ARROW")!!
         val backName = config.getString("menu.items.back_button.name", "&cBack")!!
@@ -418,6 +446,19 @@ class QuestEditorManager(private val plugin: FrPass) {
                 }
                 EditorInputType.ADD_EXTRA_REWARD -> {
                     data.extraRewards.add(trimmed)
+                }
+                EditorInputType.ICON_MATERIAL -> {
+                    if (trimmed.equals("none", ignoreCase = true) || trimmed.equals("clear", ignoreCase = true)) {
+                        data.material = null
+                    } else {
+                        data.material = trimmed
+                    }
+                }
+                EditorInputType.CUSTOM_MODEL_DATA -> {
+                    val cmd = trimmed.toIntOrNull()
+                    if (cmd != null && cmd >= 0) {
+                        data.customModelData = cmd
+                    }
                 }
             }
 

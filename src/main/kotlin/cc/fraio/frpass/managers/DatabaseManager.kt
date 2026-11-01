@@ -64,6 +64,7 @@ class DatabaseManager(private val plugin: FrPass) {
             }
             else -> {
                 val file = File(plugin.dataFolder, cfg.getString("database.file", "database.db")!!)
+                file.parentFile?.mkdirs()
                 config.driverClassName = "org.sqlite.JDBC"
                 config.jdbcUrl = "jdbc:sqlite:${file.absolutePath}"
                 config.maximumPoolSize = 1
@@ -112,47 +113,46 @@ class DatabaseManager(private val plugin: FrPass) {
             );
         """.trimIndent()
 
-        val conn = getConnection() ?: return
         try {
-            val stmt = conn.createStatement()
-            stmt.execute(sql)
-            
-            val cols = mutableSetOf<String>()
-            val meta = conn.metaData
-            val rs = meta.getColumns(null, null, "player_data", null)
-            while (rs.next()) {
-                cols.add(rs.getString("COLUMN_NAME").lowercase())
-            }
-            rs.close()
+            getConnection()?.use { conn ->
+                conn.createStatement().use { stmt ->
+                    stmt.execute(sql)
 
-            if (cols.isEmpty()) {
-                val rs2 = meta.getColumns(null, null, "PLAYER_DATA", null)
-                while (rs2.next()) {
-                    cols.add(rs2.getString("COLUMN_NAME").lowercase())
-                }
-                rs2.close()
-            }
+                    val cols = mutableSetOf<String>()
+                    val meta = conn.metaData
+                    meta.getColumns(null, null, "player_data", null).use { rs ->
+                        while (rs.next()) {
+                            cols.add(rs.getString("COLUMN_NAME").lowercase())
+                        }
+                    }
 
-            val needed = listOf(
-                "pending_tickets" to "INT DEFAULT 0",
-                "claimed_tiers" to "TEXT",
-                "claimed_premium_tiers" to "TEXT",
-                "quests_progress" to "TEXT",
-                "quest_cycle" to "INT DEFAULT 0",
-                "active_quests" to "TEXT"
-            )
+                    if (cols.isEmpty()) {
+                        meta.getColumns(null, null, "PLAYER_DATA", null).use { rs2 ->
+                            while (rs2.next()) {
+                                cols.add(rs2.getString("COLUMN_NAME").lowercase())
+                            }
+                        }
+                    }
 
-            for ((col, type) in needed) {
-                if (!cols.contains(col)) {
-                    try {
-                        stmt.execute("ALTER TABLE player_data ADD COLUMN $col $type")
-                    } catch (_: Exception) {
+                    val needed = listOf(
+                        "pending_tickets" to "INT DEFAULT 0",
+                        "claimed_tiers" to "TEXT",
+                        "claimed_premium_tiers" to "TEXT",
+                        "quests_progress" to "TEXT",
+                        "quest_cycle" to "INT DEFAULT 0",
+                        "active_quests" to "TEXT"
+                    )
+
+                    for ((col, type) in needed) {
+                        if (!cols.contains(col)) {
+                            try {
+                                stmt.execute("ALTER TABLE player_data ADD COLUMN $col $type")
+                            } catch (_: Exception) {
+                            }
+                        }
                     }
                 }
             }
-
-            stmt.close()
-            conn.close()
         } catch (e: SQLException) {
             plugin.logger.severe("Error creating database tables: ${e.message}")
         }

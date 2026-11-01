@@ -79,7 +79,7 @@ class PlayerDataManager(private val plugin: FrPass) {
             data.questProgress.clear()
             assignQuests(data)
             savePlayer(uuid)
-        } else if (mode == "ALL" && data.activeQuests.size != plugin.questManager.quests.size) {
+        } else if (mode == "ALL" && (data.activeQuests.size != plugin.questManager.quests.size || !data.activeQuests.containsAll(plugin.questManager.quests.keys))) {
             data.activeQuests = CopyOnWriteArrayList(plugin.questManager.quests.keys)
             savePlayer(uuid)
         }
@@ -306,7 +306,7 @@ class PlayerDataManager(private val plugin: FrPass) {
     private fun checkLevelUp(uuid: UUID, data: PlayerData) {
         var nextTier = plugin.tierManager.getTier(data.level + 1)
         var leveledUp = false
-        while (nextTier != null && data.xp >= nextTier.requiredXp) {
+        while (nextTier != null && nextTier.requiredXp > 0 && data.xp >= nextTier.requiredXp) {
             val oldLevel = data.level
             data.xp -= nextTier.requiredXp
             data.level += 1

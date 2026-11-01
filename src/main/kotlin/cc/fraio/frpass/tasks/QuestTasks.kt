@@ -38,8 +38,15 @@ class QuestTasks(private val plugin: FrPass) {
                     val current = player.location
                     val last = lastLocations[player.uniqueId]
 
+                    if (player.isInsideVehicle || player.isGliding || player.isFlying) {
+                        lastLocations[player.uniqueId] = current
+                        return@Consumer
+                    }
+
                     if (last != null && last.world == current.world) {
-                        val dist = current.distance(last)
+                        val dx = current.x - last.x
+                        val dz = current.z - last.z
+                        val dist = kotlin.math.hypot(dx, dz)
                         if (dist > 0.1 && dist <= 25.0) {
                             val acc = (accumulatedWalk[player.uniqueId] ?: 0.0) + dist
                             if (acc >= 1.0) {

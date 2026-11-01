@@ -38,9 +38,13 @@ class QuestStorage(private val plugin: FrPass) {
             config.set("$path.extra-rewards", quest.extraRewards)
             if (!quest.material.isNullOrBlank()) {
                 config.set("$path.material", quest.material)
+            } else {
+                config.set("$path.material", null)
             }
             if (quest.customModelData > 0) {
                 config.set("$path.custom-model-data", quest.customModelData)
+            } else {
+                config.set("$path.custom-model-data", null)
             }
 
             plugin.frSync.suppress()

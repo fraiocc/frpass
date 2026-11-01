@@ -117,9 +117,15 @@ class RewardManager(private val plugin: FrPass) {
         val tokens = parseRewardTokens(content)
         if (tokens.isEmpty()) return
 
-        val matAmount = tokens[0].split(":")
-        val materialStr = matAmount[0]
-        val amount = if (matAmount.size > 1) matAmount[1].toIntOrNull() ?: 1 else 1
+        val rawToken = tokens[0]
+        val lastColon = rawToken.lastIndexOf(':')
+        val (materialStr, amount) = if (lastColon != -1 && rawToken.substring(lastColon + 1).toIntOrNull() != null) {
+            val mat = rawToken.substring(0, lastColon)
+            val amt = rawToken.substring(lastColon + 1).toIntOrNull() ?: 1
+            mat to amt
+        } else {
+            rawToken to 1
+        }
 
         val builder = ItemBuilder.fromIdentifier(materialStr, Material.AIR)
         

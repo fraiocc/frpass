@@ -192,6 +192,8 @@ class FrPass : JavaPlugin(), FrPassAPI {
         logger.info("FrPass has been disabled!")
     }
 
+    // FrPassAPI Implementation
+
     override fun getPlayerLevel(uuid: UUID): Int {
         return playerDataManager.getPlayer(uuid)?.level ?: 0
     }
@@ -214,7 +216,55 @@ class FrPass : JavaPlugin(), FrPassAPI {
         playerDataManager.addXp(uuid, amount)
     }
 
+    override fun setXp(uuid: UUID, xp: Int) {
+        playerDataManager.setXp(uuid, xp)
+    }
+
+    override fun setLevel(uuid: UUID, level: Int) {
+        playerDataManager.setLevel(uuid, level)
+    }
+
+    override fun resetPlayer(uuid: UUID) {
+        playerDataManager.resetPlayer(uuid)
+    }
+
+    override fun giveTicket(player: Player, amount: Int) {
+        ticketManager.giveTicket(player, amount)
+    }
+
+    override fun completeQuest(player: Player, questId: String): Boolean {
+        return questManager.completeQuest(player, questId)
+    }
+
+    override fun getUnclaimedRewardCount(uuid: UUID): Int {
+        return playerDataManager.getUnclaimedRewardCount(uuid)
+    }
+
+    override fun getRequiredXpForNextLevel(uuid: UUID): Int {
+        val data = playerDataManager.getPlayer(uuid) ?: return 0
+        val nextTier = tierManager.getTier(data.level + 1)
+        return nextTier?.requiredXp ?: 0
+    }
+
+    override fun getRemainingXpForNextLevel(uuid: UUID): Int {
+        val data = playerDataManager.getPlayer(uuid) ?: return 0
+        val nextTier = tierManager.getTier(data.level + 1)
+        return if (nextTier != null) (nextTier.requiredXp - data.xp).coerceAtLeast(0) else 0
+    }
+
+    override fun getActiveQuests(uuid: UUID): List<String> {
+        return playerDataManager.getPlayer(uuid)?.activeQuests?.toList() ?: emptyList()
+    }
+
+    override fun getQuestProgress(uuid: UUID, questId: String): Int {
+        return playerDataManager.getPlayer(uuid)?.questProgress?.get(questId) ?: 0
+    }
+
     override fun addQuestProgress(player: Player, type: QuestType, amount: Int) {
         questManager.handleProgress(player, type, null, amount)
+    }
+
+    override fun addQuestProgress(player: Player, questId: String, amount: Int): Boolean {
+        return questManager.addQuestProgress(player, questId, amount)
     }
 }

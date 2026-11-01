@@ -96,13 +96,14 @@ class PassMenu(private val plugin: FrPass) {
                     val isFreeClaimed = data.claimedTiers.contains(tier.level)
                     val isPremiumClaimed = data.claimedPremiumTiers.contains(tier.level)
 
-                    val matStr = if (tier.customIcon == null || tier.customIcon.equals("default", true)) defaultMatStrLocked else tier.customIcon
+                    val hasCustomIcon = tier.customIcon != null && !tier.customIcon.equals("default", true)
+                    val customMatStr = if (hasCustomIcon) tier.customIcon else null
                     val name = tier.customName ?: player.msg("gui.tier-item.name", "%tier%" to tier.level.toString())
 
                     run {
                         val slot = freeSlots[i]
-                        val matStrSlot = if (isFreeClaimed) defaultMatStrClaimed else if (isUnlocked) defaultMatStrUnlocked else matStr
-                        val modelData = if (isFreeClaimed) defaultModelDataClaimed else if (isUnlocked) defaultModelDataUnlocked else (tier.customModelData ?: defaultModelDataLocked)
+                        val matStrSlot = customMatStr ?: if (isFreeClaimed) defaultMatStrClaimed else if (isUnlocked) defaultMatStrUnlocked else defaultMatStrLocked
+                        val modelData = tier.customModelData ?: if (isFreeClaimed) defaultModelDataClaimed else if (isUnlocked) defaultModelDataUnlocked else defaultModelDataLocked
 
                         val statusText = if (isFreeClaimed) player.msg("gui.tier-item.status-claimed")
                         else if (isUnlocked) player.msg("gui.tier-item.status-unlocked")
@@ -128,8 +129,8 @@ class PassMenu(private val plugin: FrPass) {
                     run {
                         val slot = premiumSlots[i]
                         val hasPremium = data.premium
-                        val matStrSlot = if (isPremiumClaimed) defaultMatStrClaimed else if (isUnlocked && hasPremium) defaultMatStrUnlocked else matStr
-                        val modelData = if (isPremiumClaimed) defaultModelDataClaimed else if (isUnlocked && hasPremium) defaultModelDataUnlocked else (tier.customModelData ?: defaultModelDataLocked)
+                        val matStrSlot = customMatStr ?: if (isPremiumClaimed) defaultMatStrClaimed else if (isUnlocked && hasPremium) defaultMatStrUnlocked else defaultMatStrLocked
+                        val modelData = tier.customModelData ?: if (isPremiumClaimed) defaultModelDataClaimed else if (isUnlocked && hasPremium) defaultModelDataUnlocked else defaultModelDataLocked
 
                         val statusText = if (isPremiumClaimed) player.msg("gui.tier-item.status-claimed")
                         else if (isUnlocked && hasPremium) player.msg("gui.tier-item.status-unlocked")
