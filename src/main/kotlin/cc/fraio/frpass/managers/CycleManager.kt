@@ -1,18 +1,50 @@
 package cc.fraio.frpass.managers
 
 import cc.fraio.frpass.FrPass
+import org.bukkit.entity.Player
+import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 class CycleManager(private val plugin: FrPass) {
+
+    private val isWeekly: Boolean
+        get() = plugin.configManager.config.getString("quest-system.rotate-interval", "DAILY")?.uppercase() == "WEEKLY"
+
     fun getCurrentCycle(): Int {
-        val interval = plugin.configManager.config.getString("quest-system.rotate-interval", "DAILY")?.uppercase()
         val now = Instant.now().atZone(ZoneId.systemDefault())
         val epochDay = now.toLocalDate().toEpochDay()
-        return if (interval == "WEEKLY") {
+        return if (isWeekly) {
             (epochDay / 7).toInt()
         } else {
             epochDay.toInt()
+        }
+    }
+
+    fun isRotating(): Boolean {
+        return plugin.configManager.config.getString("quest-system.mode", "ROTATING")?.uppercase() == "ROTATING"
+    }
+
+    fun getRemainingMillis(): Long {
+        val zone = ZoneId.systemDefault()
+        val now = Instant.now().atZone(zone)
+        val epochDay = now.toLocalDate().toEpochDay()
+        val nextDay = if (isWeekly) (epochDay / 7 + 1) * 7 else epochDay + 1
+        val next = LocalDate.ofEpochDay(nextDay).atStartOfDay(zone)
+        return Duration.between(now, next).toMillis().coerceAtLeast(0L)
+    }
+
+    fun formatRemaining(player: Player?): String {
+        if (!isRotating()) return plugin.langManager.getMessage(player, "time.none")
+        val total = Duration.ofMillis(getRemainingMillis())
+        val days = total.toDays()
+        val hours = total.toHoursPart()
+        val minutes = total.toMinutesPart()
+        return when {
+            days > 0 -> plugin.langManager.getMessage(player, "time.days", "%d%" to days.toString(), "%h%" to hours.toString())
+            hours > 0 -> plugin.langManager.getMessage(player, "time.hours", "%h%" to hours.toString(), "%m%" to minutes.toString())
+            else -> plugin.langManager.getMessage(player, "time.minutes", "%m%" to minutes.coerceAtLeast(1).toString())
         }
     }
 }

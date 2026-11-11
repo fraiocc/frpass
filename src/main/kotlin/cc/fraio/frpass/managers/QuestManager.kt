@@ -6,18 +6,20 @@ import cc.fraio.frpass.quests.Quest
 import cc.fraio.frpass.quests.QuestType
 import cc.fraio.frpass.utils.msg
 import org.bukkit.Bukkit
+import org.bukkit.GameMode
 import org.bukkit.Sound
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Consumer
 
 class QuestManager(private val plugin: FrPass) {
-    val quests = ConcurrentHashMap<String, Quest>()
+    @Volatile
+    var quests: Map<String, Quest> = emptyMap()
+        private set
 
     fun loadAll() {
-        quests.clear()
+        val loaded = HashMap<String, Quest>()
         val folder = File(plugin.dataFolder, "core/quests")
         if (!folder.exists()) {
             folder.mkdirs()
@@ -50,14 +52,18 @@ class QuestManager(private val plugin: FrPass) {
                 val material = section.getString("$key.material")
                 val customModelData = section.getInt("$key.custom-model-data", 0)
                 
-                quests[key] = Quest(key, displayName, type, target, required, xp, extraRewards, material, customModelData)
+                loaded[key] = Quest(key, displayName, type, target, required, xp, extraRewards, material, customModelData)
             }
         }
-        plugin.logger.info("Loaded ${quests.size} quests.")
+        quests = loaded
+        plugin.logger.info("Loaded ${loaded.size} quests.")
     }
 
     fun handleProgress(player: Player, type: QuestType, target: String? = null, amount: Int = 1) {
         if (amount <= 0) return
+        if (player.gameMode == GameMode.CREATIVE || player.gameMode == GameMode.SPECTATOR) {
+            if (plugin.configManager.config.getBoolean("quest-system.ignore-creative", true)) return
+        }
         val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
         if (data.activeQuests.isEmpty()) return
         

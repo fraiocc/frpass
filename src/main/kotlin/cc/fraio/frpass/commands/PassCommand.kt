@@ -23,8 +23,38 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
             return true
         }
 
+        if (args.isNotEmpty() && args[0].equals("top", ignoreCase = true)) {
+            handleTop(sender)
+            return true
+        }
+
         plugin.menuManager.openMainMenu(sender)
         return true
+    }
+
+    private fun handleTop(sender: Player) {
+        if (plugin.configManager.config.getBoolean("leaderboard.menu-enabled", true)) {
+            plugin.menuManager.openLeaderboardMenu(sender)
+            return
+        }
+
+        val entries = plugin.leaderboardManager.entries
+        if (entries.isEmpty()) {
+            sender.sendMessage(sender.msg("messages.top-empty"))
+            return
+        }
+        sender.sendMessage(sender.msg("messages.top-header"))
+        entries.forEachIndexed { index, entry ->
+            sender.sendMessage(
+                sender.msg(
+                    "messages.top-line",
+                    "%rank%" to (index + 1).toString(),
+                    "%name%" to entry.name,
+                    "%tier%" to entry.level.toString(),
+                    "%xp%" to entry.xp.toString()
+                )
+            )
+        }
     }
 
     private fun handleGift(sender: Player, args: Array<out String>) {
@@ -122,7 +152,7 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
 
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String> {
         if (args.size == 1) {
-            return listOf("gift").filter { it.startsWith(args[0], ignoreCase = true) }
+            return listOf("gift", "top").filter { it.startsWith(args[0], ignoreCase = true) }
         }
         if (args.size == 2 && args[0].equals("gift", ignoreCase = true)) {
             return Bukkit.getOnlinePlayers().map { it.name }.filter { it.startsWith(args[1], ignoreCase = true) }

@@ -9,6 +9,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Sound
 import java.sql.Connection
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
@@ -16,6 +17,7 @@ import java.util.function.Consumer
 
 class PlayerDataManager(private val plugin: FrPass) {
     private val cache = ConcurrentHashMap<UUID, PlayerData>()
+    private val pendingSaves = ConcurrentHashMap<UUID, CompletableFuture<Void>>()
     private var autoSaveTask: WrappedTask? = null
 
     fun init() {
@@ -87,6 +89,9 @@ class PlayerDataManager(private val plugin: FrPass) {
 
     fun loadPlayer(uuid: UUID) {
         plugin.foliaLib.scheduler.runAsync(Consumer { _ ->
+            try {
+                pendingSaves[uuid]?.get(5, TimeUnit.SECONDS)
+            } catch (_: Exception) {}
             try {
                 plugin.databaseManager.getConnection()?.use { conn ->
                     conn.prepareStatement("SELECT * FROM player_data WHERE uuid = ?").use { stmt ->
@@ -240,7 +245,20 @@ class PlayerDataManager(private val plugin: FrPass) {
 
     fun unloadPlayer(uuid: UUID) {
         val data = cache.remove(uuid) ?: return
-        saveAsync(data)
+        val done = CompletableFuture<Void>()
+        pendingSaves[uuid] = done
+        plugin.foliaLib.scheduler.runAsync(Consumer { _ ->
+            try {
+                plugin.databaseManager.getConnection()?.use { conn ->
+                    executeUpdate(conn, data)
+                }
+            } catch (e: Exception) {
+                plugin.logger.severe("Failed to async save player data for ${data.uuid}: ${e.message}")
+            } finally {
+                done.complete(null)
+                pendingSaves.remove(uuid, done)
+            }
+        })
     }
 
     fun saveAllSync() {

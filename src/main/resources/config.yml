@@ -1,3 +1,5 @@
+config-version: 1 # Do not edit. Used to add new default settings after updates.
+
 database:
   type: SQLITE # Options: SQLITE, MYSQL, MARIADB, POSTGRESQL
   file: "database.db"
@@ -12,7 +14,7 @@ database:
   connectionTimeout: 30000
 
 settings:
-  lang: "en"
+  lang: "en" # Options: en, tr, de, fr
   prefix: "&aFrPass &8» &7"
   generate-default-files: true
   notify-unclaimed-on-join: true
@@ -40,6 +42,7 @@ quest-system:
   mode: ROTATING # Options: ALL, ROTATING
   rotate-interval: DAILY # Options: DAILY, WEEKLY
   rotate-amount: 5
+  ignore-creative: true # Creative/Spectator players do not gain quest progress
 
 premium-ticket:
   material: "PAPER"
@@ -86,6 +89,12 @@ reroll:
 ai:
   enabled: true
 
+leaderboard:
+  menu-enabled: true # false: /frpass top prints the list in chat instead of opening the menu
+  size: 10 # Number of ranked players (max 100)
+  refresh-seconds: 60 # How often the ranking is refreshed from the database
+
 placeholders:
   premium-true: "&aYes"
   premium-false: "&cNo"
+  top-empty: "-" # Shown by %frpass_top_<n>_name/tier/xp% when the rank is empty

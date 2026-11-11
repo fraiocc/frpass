@@ -37,6 +37,9 @@ messages:
   reroll-no-available-quests: "%prefix%&cNo available replacement quests found to reroll!"
   reroll-success: "%prefix%&aSuccessfully rerolled %count% quest(s)!"
   reroll-cancelled: "%prefix%&cQuest reroll selection cancelled."
+  top-empty: "%prefix%&cNo ranking data yet."
+  top-header: "&8&m----------------------------------------\n&6&lFrPass &7» &eLeaderboard"
+  top-line: "  &8#%rank% &f%name% &7- Tier &f%tier% &7(&f%xp% XP&7)"
   reroll-already-completed: "%prefix%&cYou cannot reroll an already completed quest!"
   no-permission: "%prefix%&cYou do not have permission to use this command."
   update-available: "%prefix%&aNew Update Available! Download: &n%link%"
@@ -105,3 +108,9 @@ gui:
     status-unlocked: "&eClick to claim"
     status-locked: "&cLocked"
     requires-premium: "&cRequires Premium!"
+
+time:
+  days: "%d%d %h%h"
+  hours: "%h%h %m%m"
+  minutes: "%m%m"
+  none: "-"

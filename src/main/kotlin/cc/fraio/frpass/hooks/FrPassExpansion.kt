@@ -24,6 +24,21 @@ class FrPassExpansion(private val plugin: FrPass) : PlaceholderExpansion() {
     }
 
     override fun onRequest(player: OfflinePlayer?, params: String): String? {
+        val lowerParams = params.lowercase()
+        if (lowerParams.startsWith("top_")) {
+            val parts = lowerParams.split("_")
+            if (parts.size != 3) return null
+            val rank = parts[1].toIntOrNull() ?: return null
+            val entry = plugin.leaderboardManager.get(rank)
+            val empty = plugin.configManager.config.getString("placeholders.top-empty", "-") ?: "-"
+            return when (parts[2]) {
+                "name" -> entry?.name ?: empty
+                "tier" -> entry?.level?.toString() ?: empty
+                "xp" -> entry?.xp?.toString() ?: empty
+                else -> null
+            }
+        }
+
         if (player == null || !player.isOnline) return null
         
         val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return "0"
@@ -51,6 +66,7 @@ class FrPassExpansion(private val plugin: FrPass) : PlaceholderExpansion() {
                 ColorUtils.colorize(onlinePlayer, raw)
             }
             "active_quests" -> data.activeQuests.size.toString()
+            "quest_reset" -> plugin.cycleManager.formatRemaining(onlinePlayer)
             else -> null
         }
     }

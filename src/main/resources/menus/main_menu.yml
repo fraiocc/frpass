@@ -19,6 +19,16 @@ menu:
         - ""
         - "&eClick to view!"
         
+    leaderboard_button:
+      material: GOLD_INGOT
+      name: "&6Leaderboard"
+      slots: [13]
+      lore:
+        - "&7See the top players"
+        - "&7of the battlepass."
+        - ""
+        - "&eClick to view!"
+
     pass_button:
       material: DIAMOND
       name: "&bBattlepass"

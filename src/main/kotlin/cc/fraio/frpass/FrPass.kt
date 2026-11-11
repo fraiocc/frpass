@@ -18,6 +18,7 @@ import cc.fraio.frpass.managers.ConfigManager
 import cc.fraio.frpass.managers.CycleManager
 import cc.fraio.frpass.managers.DatabaseManager
 import cc.fraio.frpass.managers.LangManager
+import cc.fraio.frpass.managers.LeaderboardManager
 import cc.fraio.frpass.managers.PlayerDataManager
 import cc.fraio.frpass.managers.QuestManager
 import cc.fraio.frpass.managers.RewardManager
@@ -51,6 +52,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
     lateinit var questManager: QuestManager private set
     lateinit var questTasks: QuestTasks private set
     lateinit var cycleManager: CycleManager private set
+    lateinit var leaderboardManager: LeaderboardManager private set
     lateinit var updateChecker: UpdateChecker private set
     lateinit var ticketManager: TicketManager private set
     lateinit var aiManager: AIManager private set
@@ -108,6 +110,9 @@ class FrPass : JavaPlugin(), FrPassAPI {
         
         playerDataManager = PlayerDataManager(this)
         playerDataManager.init()
+
+        leaderboardManager = LeaderboardManager(this)
+        leaderboardManager.start()
         
         menuManager = MenuManager(this)
         questEditorManager = QuestEditorManager(this)
@@ -162,6 +167,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
         tierManager.loadAll()
         questManager.loadAll()
         playerDataManager.syncOnlinePlayers()
+        leaderboardManager.start()
         menuManager.loadMenuConfigs()
         menuManager.refreshOpenMenus()
         questEditorManager.refreshOpenEditors()
@@ -177,6 +183,9 @@ class FrPass : JavaPlugin(), FrPassAPI {
         }
         if (::questTasks.isInitialized) {
             questTasks.stopTasks()
+        }
+        if (::leaderboardManager.isInitialized) {
+            leaderboardManager.stop()
         }
         if (::playerDataManager.isInitialized) {
             playerDataManager.shutdown()

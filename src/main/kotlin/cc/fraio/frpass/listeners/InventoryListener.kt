@@ -36,6 +36,14 @@ class InventoryListener(private val plugin: FrPass) : Listener {
             MenuType.MAIN -> handleMainMenuClick(player, slot)
             MenuType.QUESTS -> handleQuestsMenuClick(player, slot, state.second, topInv.size)
             MenuType.PASS -> handlePassMenuClick(player, slot, state.second)
+            MenuType.LEADERBOARD -> handleLeaderboardMenuClick(player, slot)
+        }
+    }
+
+    private fun handleLeaderboardMenuClick(player: Player, slot: Int) {
+        val config = plugin.menuManager.getMenuConfig("leaderboard_menu.yml")
+        if (slot in config.getIntegerList("menu.items.back_button.slots")) {
+            plugin.menuManager.openMainMenu(player)
         }
     }
 
@@ -43,10 +51,16 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         val config = plugin.menuManager.getMenuConfig("main_menu.yml")
         val questsSlots = config.getIntegerList("menu.items.quests_button.slots")
         val passSlots = config.getIntegerList("menu.items.pass_button.slots")
+        val leaderboardSlots = config.getIntegerList("menu.items.leaderboard_button.slots")
 
         when (slot) {
             in questsSlots -> plugin.menuManager.openQuestsMenu(player, 1)
             in passSlots -> plugin.menuManager.openPassMenu(player, 1)
+            in leaderboardSlots -> {
+                if (plugin.configManager.config.getBoolean("leaderboard.menu-enabled", true)) {
+                    plugin.menuManager.openLeaderboardMenu(player)
+                }
+            }
         }
     }
 

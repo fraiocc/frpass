@@ -17,7 +17,11 @@ class MenuInventoryHolder(val type: MenuManager.MenuType, val page: Int) : Inven
 }
 
 class MenuManager(private val plugin: FrPass) {
-    enum class MenuType { MAIN, QUESTS, PASS }
+    companion object {
+        val MENU_FILES = listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml", "leaderboard_menu.yml", "editor_list_menu.yml", "editor_edit_menu.yml")
+    }
+
+    enum class MenuType { MAIN, QUESTS, PASS, LEADERBOARD }
 
     private val openMenus = ConcurrentHashMap<UUID, Pair<MenuType, Int>>()
     private val configCache = ConcurrentHashMap<String, YamlConfiguration>()
@@ -26,6 +30,7 @@ class MenuManager(private val plugin: FrPass) {
     val mainMenu = MainMenu(plugin)
     val questsMenu = QuestsMenu(plugin)
     val passMenu = PassMenu(plugin)
+    val leaderboardMenu = LeaderboardMenu(plugin)
 
     init {
         saveDefaultMenus()
@@ -36,7 +41,7 @@ class MenuManager(private val plugin: FrPass) {
         val autoGenerate = plugin.configManager.config.getBoolean("settings.generate-default-files", true)
         if (!autoGenerate) return
 
-        listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml", "editor_list_menu.yml", "editor_edit_menu.yml").forEach { fileName ->
+        MENU_FILES.forEach { fileName ->
             val file = File(plugin.dataFolder, "menus/$fileName")
             if (!file.exists()) {
                 file.parentFile.mkdirs()
@@ -47,7 +52,7 @@ class MenuManager(private val plugin: FrPass) {
 
     fun loadMenuConfigs() {
         configCache.clear()
-        val menuNames = listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml", "editor_list_menu.yml", "editor_edit_menu.yml")
+        val menuNames = MENU_FILES
         for (name in menuNames) {
             val file = File(plugin.dataFolder, "menus/$name")
             if (file.exists()) {
@@ -119,6 +124,7 @@ class MenuManager(private val plugin: FrPass) {
                         MenuType.MAIN -> openMainMenu(player)
                         MenuType.QUESTS -> openQuestsMenu(player, pair.second)
                         MenuType.PASS -> openPassMenu(player, pair.second)
+                        MenuType.LEADERBOARD -> openLeaderboardMenu(player)
                     }
                 })
             } else {
@@ -130,6 +136,7 @@ class MenuManager(private val plugin: FrPass) {
     fun openMainMenu(player: Player) = mainMenu.open(player)
     fun openQuestsMenu(player: Player, page: Int = 1) = questsMenu.open(player, page)
     fun openPassMenu(player: Player, page: Int = 1) = passMenu.open(player, page)
+    fun openLeaderboardMenu(player: Player) = leaderboardMenu.open(player)
 
     fun isRerollSessionActive(player: Player): Boolean = activeRerolls.containsKey(player.uniqueId)
     fun getRerollSelection(player: Player): MutableSet<String>? = activeRerolls[player.uniqueId]

@@ -18,11 +18,14 @@ class MainMenu(private val plugin: FrPass) {
 
         val itemsSection = config.getConfigurationSection("menu.items")
         if (itemsSection != null) {
+            val leaderboardEnabled = plugin.configManager.config.getBoolean("leaderboard.menu-enabled", true)
             for (key in itemsSection.getKeys(false)) {
-                val materialStr = itemsSection.getString("$key.material", "STONE")!!
-                val name = itemsSection.getString("$key.name", "")!!
-                val lore = itemsSection.getStringList("$key.lore")
-                val modelData = itemsSection.getInt("$key.custom-model-data", 0)
+                val isDisabledLeaderboard = key == "leaderboard_button" && !leaderboardEnabled
+                val itemKey = if (isDisabledLeaderboard) "background" else key
+                val materialStr = itemsSection.getString("$itemKey.material", "STONE")!!
+                val name = itemsSection.getString("$itemKey.name", "")!!
+                val lore = itemsSection.getStringList("$itemKey.lore")
+                val modelData = itemsSection.getInt("$itemKey.custom-model-data", 0)
                 val slots = itemsSection.getIntegerList("$key.slots")
 
                 val item = ItemBuilder.fromIdentifier(materialStr, Material.STONE)

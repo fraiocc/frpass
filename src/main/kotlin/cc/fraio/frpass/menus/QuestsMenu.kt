@@ -52,10 +52,12 @@ class QuestsMenu(private val plugin: FrPass) {
                     }
                     continue
                 }
+                if (keyName == "reset_timer" && !plugin.cycleManager.isRotating()) continue
 
                 val materialStr = itemsSection.getString("$key.material", "STONE")!!
-                val name = itemsSection.getString("$key.name", "")!!
-                val lore = itemsSection.getStringList("$key.lore")
+                val timeText = if (keyName == "reset_timer") plugin.cycleManager.formatRemaining(player) else ""
+                val name = itemsSection.getString("$key.name", "")!!.replace("%time%", timeText)
+                val lore = itemsSection.getStringList("$key.lore").map { it.replace("%time%", timeText) }
                 val modelData = itemsSection.getInt("$key.custom-model-data", 0)
 
                 val item = ItemBuilder.fromIdentifier(materialStr, Material.STONE)

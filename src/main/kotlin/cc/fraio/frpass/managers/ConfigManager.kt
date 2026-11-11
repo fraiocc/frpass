@@ -1,6 +1,7 @@
 package cc.fraio.frpass.managers
 
 import cc.fraio.frpass.FrPass
+import cc.fraio.frpass.utils.ConfigMigrator
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
 import java.io.InputStreamReader
@@ -11,6 +12,7 @@ class ConfigManager(private val plugin: FrPass) {
         private set
 
     fun loadAll() {
+        ConfigMigrator(plugin).migrate()
         config = loadConfig("config.yml")
     }
 

@@ -17,7 +17,20 @@ class LangManager(private val plugin: FrPass) {
         messages.clear()
         cachedPrefix = plugin.configManager.config.getString("settings.prefix", "&aFrPass &8» &7") ?: "&aFrPass &8» &7"
 
-        val lang = plugin.configManager.config.getString("settings.lang", "en") ?: "en"
+        val lang = (plugin.configManager.config.getString("settings.lang", "en") ?: "en").lowercase()
+        val generateDefaults = plugin.configManager.config.getBoolean("settings.generate-default-files", true)
+        if (generateDefaults) {
+            for (code in listOf("en", "tr", "de", "fr")) {
+                val target = File(plugin.dataFolder, "lang/$code.yml")
+                if (!target.exists()) {
+                    target.parentFile?.mkdirs()
+                    try {
+                        plugin.saveResource("lang/$code.yml", false)
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+
         val file = File(plugin.dataFolder, "lang/$lang.yml")
 
         if (!file.exists()) {
