@@ -1,12 +1,12 @@
 package cc.fraio.frpass.menus
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.utils.ColorUtils
+import cc.fraio.frpass.model.Tier
 import cc.fraio.frpass.utils.ItemBuilder
 import cc.fraio.frpass.utils.msg
-import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 
 class PassMenu(private val plugin: FrPass) {
 
@@ -27,47 +27,24 @@ class PassMenu(private val plugin: FrPass) {
         val titleRaw = menuConfig.getString("menu.title", "&8Battlepass (Page %page%)")!!
             .replace("%page%", currentPage.toString())
             .replace("%total%", totalPages.toString())
-        val title = ColorUtils.colorize(player, titleRaw)
         val size = menuConfig.getInt("menu.size", 27)
-
-        val inv = Bukkit.createInventory(MenuInventoryHolder(MenuManager.MenuType.PASS, currentPage), size, title)
+        val inv = MenuSupport.createInventory(MenuInventoryHolder(MenuManager.MenuType.PASS, currentPage), size, player, titleRaw)
 
         val itemsSection = menuConfig.getConfigurationSection("menu.items")
-        val bgMatStr = itemsSection?.getString("background.material", "GRAY_STAINED_GLASS_PANE") ?: "GRAY_STAINED_GLASS_PANE"
-        val bgModelData = itemsSection?.getInt("background.custom-model-data", 0) ?: 0
-        val bgItem = ItemBuilder.fromIdentifier(bgMatStr, Material.GRAY_STAINED_GLASS_PANE)
-            .setName(" ", player)
-            .setCustomModelData(bgModelData)
-            .build()
+        val bgItem = MenuSupport.buildBackgroundItem(itemsSection, player)
+        val unclaimedCount = plugin.playerDataManager.getUnclaimedRewardCount(player.uniqueId).toString()
 
         itemsSection?.getKeys(false)?.forEach { key ->
             val keyName = key.lowercase()
             val slots = itemsSection.getIntegerList("$key.slots")
 
-            if (keyName == "prev_page" && currentPage <= 1) {
-                slots.forEach { s -> if (s in 0 until size) inv.setItem(s, bgItem) }
-                return@forEach
-            }
-            if (keyName == "next_page" && currentPage >= totalPages) {
+            if ((keyName == "prev_page" && currentPage <= 1) || (keyName == "next_page" && currentPage >= totalPages)) {
                 slots.forEach { s -> if (s in 0 until size) inv.setItem(s, bgItem) }
                 return@forEach
             }
 
-            val matStr = itemsSection.getString("$key.material", "STONE")!!
-            val name = itemsSection.getString("$key.name", " ")!!
-            val lore = itemsSection.getStringList("$key.lore")
-            val modelData = itemsSection.getInt("$key.custom-model-data", 0)
-
-            val item = ItemBuilder.fromIdentifier(matStr, Material.STONE)
-                .setName(name, player)
-                .setLore(lore, player)
-                .setCustomModelData(modelData)
-                .build()
-
-            slots.forEach { slot ->
-                if (slot in 0 until size) {
-                    inv.setItem(slot, item)
-                }
+            MenuSupport.placeSectionItem(inv, itemsSection, key, player, size) {
+                it.replace("%count%", unclaimedCount)
             }
         }
 
@@ -79,13 +56,15 @@ class PassMenu(private val plugin: FrPass) {
             val count = minOf(freeSlots.size, premiumSlots.size)
             var tierIndex = 1 + (currentPage - 1) * count
 
-            val defaultMatStrClaimed = plugin.configManager.config.getString("tier-icons.claimed.material", "MINECART")!!
-            val defaultModelDataClaimed = plugin.configManager.config.getInt("tier-icons.claimed.custom-model-data", 0)
-            val defaultMatStrUnlocked = plugin.configManager.config.getString("tier-icons.unlocked.material", "CHEST_MINECART")!!
-            val defaultModelDataUnlocked = plugin.configManager.config.getInt("tier-icons.unlocked.custom-model-data", 0)
-            val defaultMatStrLocked = plugin.configManager.config.getString("tier-icons.locked.material", "HOPPER_MINECART")!!
-            val defaultModelDataLocked = plugin.configManager.config.getInt("tier-icons.locked.custom-model-data", 0)
-
+            val cfg = plugin.configManager.config
+            val icons = IconConfig(
+                claimedMat = cfg.getString("tier-icons.claimed.material", "MINECART")!!,
+                claimedModel = cfg.getInt("tier-icons.claimed.custom-model-data", 0),
+                unlockedMat = cfg.getString("tier-icons.unlocked.material", "CHEST_MINECART")!!,
+                unlockedModel = cfg.getInt("tier-icons.unlocked.custom-model-data", 0),
+                lockedMat = cfg.getString("tier-icons.locked.material", "HOPPER_MINECART")!!,
+                lockedModel = cfg.getInt("tier-icons.locked.custom-model-data", 0)
+            )
             val freeSuffix = player.msg("gui.tier-item.free-suffix")
             val premiumSuffix = player.msg("gui.tier-item.premium-suffix")
 
@@ -93,69 +72,13 @@ class PassMenu(private val plugin: FrPass) {
                 val tier = plugin.tierManager.getTier(tierIndex)
                 if (tier != null) {
                     val isUnlocked = data.level >= tier.level
-                    val isFreeClaimed = data.claimedTiers.contains(tier.level)
-                    val isPremiumClaimed = data.claimedPremiumTiers.contains(tier.level)
+                    val freeItem = buildTierItem(player, tier, icons, freeSuffix, isUnlocked, data.claimedTiers.contains(tier.level), requiresPremiumNotice = false)
+                    val premItem = buildTierItem(player, tier, icons, premiumSuffix, isUnlocked && data.premium, data.claimedPremiumTiers.contains(tier.level), requiresPremiumNotice = !data.premium)
 
-                    val hasCustomIcon = tier.customIcon != null && !tier.customIcon.equals("default", true)
-                    val customMatStr = if (hasCustomIcon) tier.customIcon else null
-                    val name = tier.customName ?: player.msg("gui.tier-item.name", "%tier%" to tier.level.toString())
-
-                    run {
-                        val slot = freeSlots[i]
-                        val matStrSlot = customMatStr ?: if (isFreeClaimed) defaultMatStrClaimed else if (isUnlocked) defaultMatStrUnlocked else defaultMatStrLocked
-                        val modelData = tier.customModelData ?: if (isFreeClaimed) defaultModelDataClaimed else if (isUnlocked) defaultModelDataUnlocked else defaultModelDataLocked
-
-                        val statusText = if (isFreeClaimed) player.msg("gui.tier-item.status-claimed")
-                        else if (isUnlocked) player.msg("gui.tier-item.status-unlocked")
-                        else player.msg("gui.tier-item.status-locked")
-
-                        val lore = mutableListOf<String>()
-                        if (tier.customLore != null) {
-                            lore.addAll(tier.customLore)
-                        } else {
-                            lore.add(player.msg("gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
-                        }
-                        lore.add("")
-                        lore.add(player.msg("gui.tier-item.status-prefix") + statusText)
-
-                        val item = ItemBuilder.fromIdentifier(matStrSlot, Material.MINECART)
-                            .setName(name + freeSuffix, player)
-                            .setLore(lore, player)
-                            .setCustomModelData(modelData)
-                            .build()
-                        if (slot in 0 until size) inv.setItem(slot, item)
-                    }
-
-                    run {
-                        val slot = premiumSlots[i]
-                        val hasPremium = data.premium
-                        val matStrSlot = customMatStr ?: if (isPremiumClaimed) defaultMatStrClaimed else if (isUnlocked && hasPremium) defaultMatStrUnlocked else defaultMatStrLocked
-                        val modelData = tier.customModelData ?: if (isPremiumClaimed) defaultModelDataClaimed else if (isUnlocked && hasPremium) defaultModelDataUnlocked else defaultModelDataLocked
-
-                        val statusText = if (isPremiumClaimed) player.msg("gui.tier-item.status-claimed")
-                        else if (isUnlocked && hasPremium) player.msg("gui.tier-item.status-unlocked")
-                        else player.msg("gui.tier-item.status-locked")
-
-                        val lore = mutableListOf<String>()
-                        if (tier.customLore != null) {
-                            lore.addAll(tier.customLore)
-                        } else {
-                            lore.add(player.msg("gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
-                        }
-                        if (!hasPremium) {
-                            lore.add("")
-                            lore.add(player.msg("gui.tier-item.requires-premium"))
-                        }
-                        lore.add("")
-                        lore.add(player.msg("gui.tier-item.status-prefix") + statusText)
-
-                        val item = ItemBuilder.fromIdentifier(matStrSlot, Material.MINECART)
-                            .setName(name + premiumSuffix, player)
-                            .setLore(lore, player)
-                            .setCustomModelData(modelData)
-                            .build()
-                        if (slot in 0 until size) inv.setItem(slot, item)
-                    }
+                    val fSlot = freeSlots[i]
+                    if (fSlot in 0 until size) inv.setItem(fSlot, freeItem)
+                    val pSlot = premiumSlots[i]
+                    if (pSlot in 0 until size) inv.setItem(pSlot, premItem)
                 }
                 tierIndex++
             }
@@ -164,4 +87,59 @@ class PassMenu(private val plugin: FrPass) {
         player.openInventory(inv)
         plugin.menuManager.setOpenMenu(player, MenuManager.MenuType.PASS, currentPage)
     }
+
+    private fun buildTierItem(
+        player: Player,
+        tier: Tier,
+        icons: IconConfig,
+        suffix: String,
+        unlocked: Boolean,
+        claimed: Boolean,
+        requiresPremiumNotice: Boolean
+    ): ItemStack {
+        val customMat = tier.customIcon?.takeUnless { it.equals("default", true) }
+        val matStr = customMat ?: when {
+            claimed -> icons.claimedMat
+            unlocked -> icons.unlockedMat
+            else -> icons.lockedMat
+        }
+        val modelData = tier.customModelData ?: when {
+            claimed -> icons.claimedModel
+            unlocked -> icons.unlockedModel
+            else -> icons.lockedModel
+        }
+        val statusText = when {
+            claimed -> player.msg("gui.tier-item.status-claimed")
+            unlocked -> player.msg("gui.tier-item.status-unlocked")
+            else -> player.msg("gui.tier-item.status-locked")
+        }
+        val name = (tier.customName ?: player.msg("gui.tier-item.name", "%tier%" to tier.level.toString())) + suffix
+        val lore = mutableListOf<String>()
+        if (tier.customLore != null) {
+            lore.addAll(tier.customLore)
+        } else {
+            lore.add(player.msg("gui.tier-item.lore-xp", "%xp%" to tier.requiredXp.toString()))
+        }
+        if (requiresPremiumNotice) {
+            lore.add("")
+            lore.add(player.msg("gui.tier-item.requires-premium"))
+        }
+        lore.add("")
+        lore.add(player.msg("gui.tier-item.status-prefix") + statusText)
+
+        return ItemBuilder.fromIdentifier(matStr, Material.MINECART)
+            .setName(name, player)
+            .setLore(lore, player)
+            .setCustomModelData(modelData)
+            .build()
+    }
+
+    private data class IconConfig(
+        val claimedMat: String,
+        val claimedModel: Int,
+        val unlockedMat: String,
+        val unlockedModel: Int,
+        val lockedMat: String,
+        val lockedModel: Int
+    )
 }

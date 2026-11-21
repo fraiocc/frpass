@@ -2,11 +2,11 @@ package cc.fraio.frpass.managers
 
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.api.events.FrPassLevelUpEvent
-import cc.fraio.frpass.data.PlayerData
-import cc.fraio.frpass.utils.msg
+import cc.fraio.frpass.model.PlayerData
+import cc.fraio.frpass.utils.SoundUtils
+import cc.fraio.frpass.utils.sendMsg
 import com.tcoded.folialib.wrapper.task.WrappedTask
 import org.bukkit.Bukkit
-import org.bukkit.Sound
 import java.sql.Connection
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -23,8 +23,9 @@ class PlayerDataManager(private val plugin: FrPass) {
     fun init() {
         autoSaveTask?.cancel()
         autoSaveTask = plugin.foliaLib.scheduler.runTimerAsync(Runnable {
-            for (player in Bukkit.getOnlinePlayers()) {
-                savePlayer(player.uniqueId)
+            val snapshot = cache.values.toList()
+            if (snapshot.isNotEmpty()) {
+                saveAllBatch(snapshot)
             }
         }, 5L, 5L, TimeUnit.MINUTES)
     }
@@ -133,7 +134,10 @@ class PlayerDataManager(private val plugin: FrPass) {
                                     if (activeStr.isEmpty()) emptyList() else activeStr.split(",")
                                 )
 
-                                val data = PlayerData(uuid, xp, level, premium, claimedTiers, claimedPremiumTiers, questProgress, cycle, activeQuests, pendingTickets)
+                                val onlineName = Bukkit.getPlayer(uuid)?.name ?: ""
+                                val storedName = runCatching { rs.getString("name") }.getOrNull().orEmpty()
+                                val playerName = onlineName.ifBlank { storedName }
+                                val data = PlayerData(uuid, playerName, xp, level, premium, claimedTiers, claimedPremiumTiers, questProgress, cycle, activeQuests, pendingTickets)
                                 val currentCycle = plugin.cycleManager.getCurrentCycle()
                                 val mode = plugin.configManager.config.getString("quest-system.mode", "ROTATING")?.uppercase()
 
@@ -143,9 +147,14 @@ class PlayerDataManager(private val plugin: FrPass) {
                                     assignQuests(data)
                                 } else if (mode == "ALL") {
                                     data.activeQuests = CopyOnWriteArrayList(plugin.questManager.quests.keys)
+                                } else {
+                                    val validActive = data.activeQuests.filter { plugin.questManager.quests.containsKey(it) }
+                                    if (validActive.size != data.activeQuests.size) {
+                                        data.activeQuests = CopyOnWriteArrayList(validActive)
+                                    }
                                 }
 
-                                if (data.activeQuests.isEmpty() || data.activeQuests.none { plugin.questManager.quests.containsKey(it) }) {
+                                if (data.activeQuests.isEmpty()) {
                                     assignQuests(data)
                                 }
 
@@ -153,16 +162,18 @@ class PlayerDataManager(private val plugin: FrPass) {
                                     cache[uuid] = data
                                 }
                             } else {
-                                val data = PlayerData(uuid)
+                                val onlineName = Bukkit.getPlayer(uuid)?.name ?: ""
+                                val data = PlayerData(uuid, name = onlineName)
                                 val currentCycle = plugin.cycleManager.getCurrentCycle()
                                 data.questCycle = currentCycle
                                 assignQuests(data)
 
-                                conn.prepareStatement("INSERT INTO player_data (uuid, xp, level, premium, claimed_tiers, claimed_premium_tiers, quests_progress, quest_cycle, active_quests, pending_tickets) VALUES (?, 0, 0, ?, '', '', '', ?, ?, 0)").use { insert ->
+                                conn.prepareStatement("INSERT INTO player_data (uuid, name, xp, level, premium, claimed_tiers, claimed_premium_tiers, quests_progress, quest_cycle, active_quests, pending_tickets) VALUES (?, ?, 0, 0, ?, '', '', '', ?, ?, 0)").use { insert ->
                                     insert.setString(1, uuid.toString())
-                                    insert.setBoolean(2, false)
-                                    insert.setInt(3, data.questCycle)
-                                    insert.setString(4, data.activeQuests.joinToString(","))
+                                    insert.setString(2, data.name)
+                                    insert.setBoolean(3, false)
+                                    insert.setInt(4, data.questCycle)
+                                    insert.setString(5, data.activeQuests.joinToString(","))
                                     insert.executeUpdate()
                                 }
 
@@ -222,20 +233,54 @@ class PlayerDataManager(private val plugin: FrPass) {
         }
     }
 
+    private val updateSql = "UPDATE player_data SET name = ?, xp = ?, level = ?, premium = ?, claimed_tiers = ?, claimed_premium_tiers = ?, quests_progress = ?, quest_cycle = ?, active_quests = ?, pending_tickets = ? WHERE uuid = ?"
+
+    private fun bindUpdate(stmt: java.sql.PreparedStatement, data: PlayerData) {
+        stmt.setString(1, data.name)
+        stmt.setInt(2, data.xp)
+        stmt.setInt(3, data.level)
+        stmt.setBoolean(4, data.premium)
+        stmt.setString(5, data.claimedTiers.joinToString(","))
+        stmt.setString(6, data.claimedPremiumTiers.joinToString(","))
+        val qpStr = data.questProgress.entries.joinToString(",") { "${it.key}:${it.value}" }
+        stmt.setString(7, qpStr)
+        stmt.setInt(8, data.questCycle)
+        stmt.setString(9, data.activeQuests.joinToString(","))
+        stmt.setInt(10, data.pendingTickets)
+        stmt.setString(11, data.uuid.toString())
+    }
+
     private fun executeUpdate(conn: Connection, data: PlayerData) {
-        conn.prepareStatement("UPDATE player_data SET xp = ?, level = ?, premium = ?, claimed_tiers = ?, claimed_premium_tiers = ?, quests_progress = ?, quest_cycle = ?, active_quests = ?, pending_tickets = ? WHERE uuid = ?").use { stmt ->
-            stmt.setInt(1, data.xp)
-            stmt.setInt(2, data.level)
-            stmt.setBoolean(3, data.premium)
-            stmt.setString(4, data.claimedTiers.joinToString(","))
-            stmt.setString(5, data.claimedPremiumTiers.joinToString(","))
-            val qpStr = data.questProgress.entries.joinToString(",") { "${it.key}:${it.value}" }
-            stmt.setString(6, qpStr)
-            stmt.setInt(7, data.questCycle)
-            stmt.setString(8, data.activeQuests.joinToString(","))
-            stmt.setInt(9, data.pendingTickets)
-            stmt.setString(10, data.uuid.toString())
+        conn.prepareStatement(updateSql).use { stmt ->
+            bindUpdate(stmt, data)
             stmt.executeUpdate()
+        }
+    }
+
+    private fun saveAllBatch(entries: Collection<PlayerData>) {
+        if (entries.isEmpty()) return
+        try {
+            plugin.databaseManager.getConnection()?.use { conn ->
+                val prevAutoCommit = conn.autoCommit
+                conn.autoCommit = false
+                try {
+                    conn.prepareStatement(updateSql).use { stmt ->
+                        for (data in entries) {
+                            bindUpdate(stmt, data)
+                            stmt.addBatch()
+                        }
+                        stmt.executeBatch()
+                    }
+                    conn.commit()
+                } catch (e: Exception) {
+                    runCatching { conn.rollback() }
+                    throw e
+                } finally {
+                    runCatching { conn.autoCommit = prevAutoCommit }
+                }
+            }
+        } catch (e: Exception) {
+            plugin.logger.severe("Failed to batch save player data (${entries.size} entries): ${e.message}")
         }
     }
 
@@ -262,8 +307,9 @@ class PlayerDataManager(private val plugin: FrPass) {
     }
 
     fun saveAllSync() {
-        for ((_, data) in cache) {
-            saveSync(data)
+        val snapshot = cache.values.toList()
+        if (snapshot.isNotEmpty()) {
+            saveAllBatch(snapshot)
         }
         cache.clear()
     }
@@ -271,7 +317,7 @@ class PlayerDataManager(private val plugin: FrPass) {
     fun addXp(uuid: UUID, amount: Int) {
         if (amount <= 0) return
         val data = getPlayer(uuid) ?: return
-        data.xp += amount
+        data.xp = (data.xp.toLong() + amount).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         checkLevelUp(uuid, data)
         savePlayer(uuid)
     }
@@ -346,15 +392,12 @@ class PlayerDataManager(private val plugin: FrPass) {
                 val soundStr = plugin.configManager.config.getString("settings.sounds.level-up")
                 plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
                     if (!player.isOnline) return@Consumer
-                    player.sendMessage(player.msg("messages.level-up", 
+                    player.sendMsg(
+                        "messages.level-up",
                         "%prefix%" to prefix,
                         "%tier%" to newTierLevel.toString()
-                    ))
-                    if (!soundStr.isNullOrEmpty()) {
-                        try {
-                            player.playSound(player.location, Sound.valueOf(soundStr.uppercase()), 1f, 1f)
-                        } catch (_: Exception) {}
-                    }
+                    )
+                    SoundUtils.play(player, soundStr)
                 })
             }
             

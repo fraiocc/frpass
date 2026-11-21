@@ -4,10 +4,12 @@ import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.hooks.VaultHook
 import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.ItemBuilder
+import cc.fraio.frpass.utils.SoundUtils
+import net.kyori.adventure.title.Title
 import org.bukkit.Bukkit
 import org.bukkit.Material
-import org.bukkit.Sound
 import org.bukkit.entity.Player
+import java.time.Duration
 import java.util.function.Consumer
 
 class RewardManager(private val plugin: FrPass) {
@@ -53,11 +55,11 @@ class RewardManager(private val plugin: FrPass) {
 
     private fun executeMessageReward(player: Player, content: String) {
         val msg = content.replace("%player%", player.name)
-        player.sendMessage(ColorUtils.colorize(player, msg))
+        player.sendMessage(ColorUtils.toComponent(player, msg))
     }
 
     private fun executeBroadcastReward(player: Player, content: String) {
-        val formatted = ColorUtils.colorize(player, content.replace("%player%", player.name))
+        val formatted = ColorUtils.toComponent(player, content.replace("%player%", player.name))
         for (online in Bukkit.getOnlinePlayers()) {
             online.sendMessage(formatted)
         }
@@ -72,25 +74,20 @@ class RewardManager(private val plugin: FrPass) {
         val pitch = parts.getOrNull(2)?.toFloatOrNull() ?: 1f
 
         plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
-            if (!player.isOnline) return@Consumer
-            try {
-                val sound = Sound.valueOf(soundName)
-                player.playSound(player.location, sound, volume, pitch)
-            } catch (_: Exception) {
-                plugin.logger.warning("Invalid sound '$soundName' in [SOUND] reward.")
-            }
+            SoundUtils.play(player, soundName, volume, pitch)
         })
     }
 
     private fun executeTitleReward(player: Player, content: String) {
         val replaced = content.replace("%player%", player.name)
         val parts = replaced.split("|", limit = 2)
-        val title = ColorUtils.colorize(player, parts[0].trim())
-        val subtitle = if (parts.size > 1) ColorUtils.colorize(player, parts[1].trim()) else ""
+        val title = ColorUtils.toComponent(player, parts[0].trim())
+        val subtitle = if (parts.size > 1) ColorUtils.toComponent(player, parts[1].trim()) else net.kyori.adventure.text.Component.empty()
+        val times = Title.Times.times(Duration.ofMillis(500), Duration.ofMillis(3500), Duration.ofMillis(1000))
 
         plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
             if (player.isOnline) {
-                player.sendTitle(title, subtitle, 10, 70, 20)
+                player.showTitle(Title.title(title, subtitle, times))
             }
         })
     }

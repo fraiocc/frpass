@@ -13,8 +13,11 @@ menu:
     background:
       material: GRAY_STAINED_GLASS_PANE
       name: " "
-      slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19, 20, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 50, 51, 52]
+      slots: [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19, 20, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 50, 51, 52]
       custom-model-data: 0
+
+    preview:
+      slot: 4
 
     id:
       material: OAK_SIGN
@@ -42,9 +45,10 @@ menu:
       slot: 13
       lore:
         - "&7Current: &a&l%type%"
-        - "&7Next: &8%next_type%"
+        - "&7Next: &8%next_type% &8| &7Prev: &8%prev_type%"
         - ""
-        - "&eClick to switch type."
+        - "&aLeft-Click: &7Next type"
+        - "&eRight-Click: &7Previous type"
 
     target:
       material: TARGET
@@ -53,7 +57,8 @@ menu:
       lore:
         - "&7Current: &f%target%"
         - ""
-        - "&eClick to change."
+        - "&aLeft-Click: &7Set target"
+        - "&cRight-Click: &7Clear target"
 
     required_amount:
       material: REPEATER
@@ -62,7 +67,9 @@ menu:
       lore:
         - "&7Current: &b%required%"
         - ""
-        - "&eClick to change."
+        - "&aLeft-Click: &7Enter value"
+        - "&eRight-Click: &7+10"
+        - "&cShift-Right-Click: &7-10"
 
     reward_xp:
       material: EXPERIENCE_BOTTLE
@@ -71,7 +78,9 @@ menu:
       lore:
         - "&7Current: &a%xp% XP"
         - ""
-        - "&eClick to change."
+        - "&aLeft-Click: &7Enter value"
+        - "&eRight-Click: &7+50"
+        - "&cShift-Right-Click: &7-50"
 
     icon:
       material: ITEM_FRAME
@@ -81,6 +90,7 @@ menu:
         - "&7Material: &f%material%"
         - "&7Model Data: &f%model_data%"
         - ""
+        - "&bClick with item: &7Copy item"
         - "&aLeft-Click: &7Set Icon Material"
         - "&eRight-Click: &7Set Model Data"
         - "&cShift-Right-Click: &7Reset Icon"
@@ -92,7 +102,8 @@ menu:
       lore-footer:
         - ""
         - "&aLeft-Click: &7Add reward"
-        - "&cRight-Click: &7Clear all"
+        - "&eRight-Click: &7Remove last"
+        - "&cShift-Right-Click: &7Clear all"
 
     back_button:
       material: ARROW

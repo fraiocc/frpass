@@ -1,0 +1,99 @@
+menu:
+  title_create: "&8Create Tier: %tier%"
+  title_edit: "&8Edit Tier: %tier%"
+  size: 54
+
+  placeholders:
+    none: "None"
+    empty-rewards: "&8(None)"
+    reward-entry: "&8- &f%reward%"
+
+  items:
+    background:
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      slots: [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 50, 51, 52]
+      custom-model-data: 0
+
+    preview:
+      slot: 4
+
+    level:
+      material: OAK_SIGN
+      name: "&fTier Level"
+      slot: 11
+      lore-new:
+        - "&7Current: &f%tier%"
+        - ""
+        - "&eClick to set level."
+      lore-edit:
+        - "&7Level: &f%tier%"
+
+    display_name:
+      material: NAME_TAG
+      name: "&bDisplay Name"
+      slot: 12
+      lore:
+        - "&7Current: &f%display_name%"
+        - ""
+        - "&aLeft-Click: &7Change"
+        - "&cRight-Click: &7Reset"
+
+    required_xp:
+      material: EXPERIENCE_BOTTLE
+      name: "&6Required XP"
+      slot: 13
+      lore:
+        - "&7Current: &b%xp% XP"
+        - ""
+        - "&aLeft-Click: &7Enter value"
+        - "&eRight-Click: &7+100"
+        - "&cShift-Right-Click: &7-100"
+
+    icon:
+      material: ITEM_FRAME
+      name: "&eTier Icon"
+      slot: 14
+      lore:
+        - "&7Material: &f%material%"
+        - "&7Model Data: &f%model_data%"
+        - ""
+        - "&bClick with item: &7Copy item"
+        - "&aLeft-Click: &7Set Icon Material"
+        - "&eRight-Click: &7Set Model Data"
+        - "&cShift-Right-Click: &7Reset Icon"
+
+    free_rewards:
+      material: CHEST
+      name: "&aFree Rewards"
+      slot: 21
+      lore-footer:
+        - ""
+        - "&aLeft-Click: &7Add reward"
+        - "&eRight-Click: &7Remove last"
+        - "&cShift-Right-Click: &7Clear all"
+
+    premium_rewards:
+      material: ENDER_CHEST
+      name: "&ePremium Rewards"
+      slot: 23
+      lore-footer:
+        - ""
+        - "&aLeft-Click: &7Add reward"
+        - "&eRight-Click: &7Remove last"
+        - "&cShift-Right-Click: &7Clear all"
+
+    back_button:
+      material: ARROW
+      name: "&cBack"
+      slot: 45
+
+    save_button:
+      material: EMERALD_BLOCK
+      name: "&a&lSave Tier"
+      slot: 49
+
+    delete_button:
+      material: REDSTONE_BLOCK
+      name: "&c&lDelete Tier"
+      slot: 53

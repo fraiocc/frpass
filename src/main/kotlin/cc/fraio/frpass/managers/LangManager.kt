@@ -2,6 +2,7 @@ package cc.fraio.frpass.managers
 
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.utils.ColorUtils
+import net.kyori.adventure.text.Component
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import java.io.File
@@ -67,21 +68,29 @@ class LangManager(private val plugin: FrPass) {
     }
 
     fun getMessage(player: Player?, path: String, vararg placeholders: Pair<String, String>): String {
-        var raw = messages[path] ?: return ColorUtils.colorize(player, "&cMissing lang: $path")
-
-        if (raw.contains("%prefix%")) {
-            raw = raw.replace("%prefix%", cachedPrefix)
-        }
-
-        for (i in placeholders.indices) {
-            val p = placeholders[i]
-            raw = raw.replace(p.first, p.second)
-        }
-
-        return ColorUtils.colorize(player, raw)
+        return ColorUtils.colorize(player, resolveRaw(path, *placeholders))
     }
 
     fun getMessage(path: String, vararg placeholders: Pair<String, String>): String {
         return getMessage(null, path, *placeholders)
+    }
+
+    fun getComponent(player: Player?, path: String, vararg placeholders: Pair<String, String>): Component {
+        return ColorUtils.toComponent(player, resolveRaw(path, *placeholders))
+    }
+
+    fun getComponent(path: String, vararg placeholders: Pair<String, String>): Component {
+        return getComponent(null, path, *placeholders)
+    }
+
+    private fun resolveRaw(path: String, vararg placeholders: Pair<String, String>): String {
+        var raw = messages[path] ?: return "&cMissing lang: $path"
+        if (raw.contains("%prefix%")) {
+            raw = raw.replace("%prefix%", cachedPrefix)
+        }
+        for (p in placeholders) {
+            raw = raw.replace(p.first, p.second)
+        }
+        return raw
     }
 }

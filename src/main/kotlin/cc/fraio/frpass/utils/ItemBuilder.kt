@@ -22,14 +22,14 @@ class ItemBuilder {
 
     fun setName(name: String, player: Player? = null): ItemBuilder {
         if (name.isNotEmpty()) {
-            meta?.setDisplayName(ColorUtils.colorize(player, name))
+            meta?.displayName(ColorUtils.toItemComponent(player, name))
         }
         return this
     }
 
     fun setLore(lore: List<String>, player: Player? = null): ItemBuilder {
         if (lore.isNotEmpty()) {
-            meta?.lore = ColorUtils.colorize(player, lore)
+            meta?.lore(ColorUtils.toItemComponents(player, lore))
         }
         return this
     }

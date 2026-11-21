@@ -2,12 +2,13 @@ package cc.fraio.frpass.listeners
 
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.api.events.FrPassTierClaimEvent
-import cc.fraio.frpass.data.PlayerData
+import cc.fraio.frpass.model.PlayerData
 import cc.fraio.frpass.menus.MenuInventoryHolder
 import cc.fraio.frpass.menus.MenuManager.MenuType
+import cc.fraio.frpass.utils.SoundUtils
 import cc.fraio.frpass.utils.msg
+import cc.fraio.frpass.utils.sendMsg
 import org.bukkit.Bukkit
-import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -54,8 +55,20 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         val leaderboardSlots = config.getIntegerList("menu.items.leaderboard_button.slots")
 
         when (slot) {
-            in questsSlots -> plugin.menuManager.openQuestsMenu(player, 1)
-            in passSlots -> plugin.menuManager.openPassMenu(player, 1)
+            in questsSlots -> {
+                if (plugin.playerDataManager.getPlayer(player.uniqueId) == null) {
+                    player.sendMsg("messages.data-loading")
+                    return
+                }
+                plugin.menuManager.openQuestsMenu(player, 1)
+            }
+            in passSlots -> {
+                if (plugin.playerDataManager.getPlayer(player.uniqueId) == null) {
+                    player.sendMsg("messages.data-loading")
+                    return
+                }
+                plugin.menuManager.openPassMenu(player, 1)
+            }
             in leaderboardSlots -> {
                 if (plugin.configManager.config.getBoolean("leaderboard.menu-enabled", true)) {
                     plugin.menuManager.openLeaderboardMenu(player)
@@ -192,16 +205,40 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         val freeSlots = menuConfig.getIntegerList("menu.free-tier-slots")
         val premiumSlots = menuConfig.getIntegerList("menu.premium-tier-slots")
         val backSlots = menuConfig.getIntegerList("menu.items.back_button.slots")
+        val claimAllSlots = menuConfig.getIntegerList("menu.items.claim_all_button.slots")
         val nextSlots = menuConfig.getIntegerList("menu.items.next_page.slots")
         val prevSlots = menuConfig.getIntegerList("menu.items.prev_page.slots")
         val totalPages = plugin.menuManager.passMenu.getTotalPages()
 
         when (slot) {
             in backSlots -> plugin.menuManager.openMainMenu(player)
+            in claimAllSlots -> claimAllTiers(player, data, page)
             in nextSlots -> if (page < totalPages) plugin.menuManager.openPassMenu(player, page + 1)
             in prevSlots -> if (page > 1) plugin.menuManager.openPassMenu(player, page - 1)
             in freeSlots -> claimTier(player, data, freeSlots.indexOf(slot), page, freeSlots.size, premiumSlots.size, isPremiumReward = false)
             in premiumSlots -> claimTier(player, data, premiumSlots.indexOf(slot), page, freeSlots.size, premiumSlots.size, isPremiumReward = true)
+        }
+    }
+
+    private fun claimAllTiers(player: Player, data: PlayerData, page: Int) {
+        var claimedCount = 0
+        for (tier in plugin.tierManager.tiers.values.sortedBy { it.level }) {
+            if (tier.level > data.level) break
+            if (tier.freeRewards.isNotEmpty() && tryClaimTierTrack(player, data, tier, isPremiumReward = false)) {
+                claimedCount++
+            }
+            if (tier.premiumRewards.isNotEmpty() && tryClaimTierTrack(player, data, tier, isPremiumReward = true)) {
+                claimedCount++
+            }
+        }
+
+        if (claimedCount > 0) {
+            plugin.playerDataManager.savePlayer(player.uniqueId)
+            playClaimSound(player)
+            player.sendMessage(player.msg("messages.claimed-all", "%count%" to claimedCount.toString()))
+            plugin.menuManager.openPassMenu(player, page)
+        } else {
+            player.sendMessage(player.msg("messages.no-rewards-to-claim"))
         }
     }
 
@@ -219,35 +256,39 @@ class InventoryListener(private val plugin: FrPass) : Listener {
         val tierLevel = ((page - 1) * count) + slotIndex + 1
         val tier = plugin.tierManager.getTier(tierLevel) ?: return
 
-        val alreadyClaimed = if (isPremiumReward) data.claimedPremiumTiers.contains(tierLevel) else data.claimedTiers.contains(tierLevel)
-        val canClaim = data.level >= tierLevel && (!isPremiumReward || data.premium)
-
-        if (canClaim && !alreadyClaimed) {
-            val event = FrPassTierClaimEvent(player, tierLevel, isPremiumReward)
-            Bukkit.getPluginManager().callEvent(event)
-            if (event.isCancelled) return
-
-            if (isPremiumReward) {
-                data.claimedPremiumTiers.add(tierLevel)
-                plugin.rewardManager.giveRewards(player, tier.premiumRewards)
-            } else {
-                data.claimedTiers.add(tierLevel)
-                plugin.rewardManager.giveRewards(player, tier.freeRewards)
-            }
-
+        if (tryClaimTierTrack(player, data, tier, isPremiumReward)) {
             plugin.playerDataManager.savePlayer(player.uniqueId)
             playClaimSound(player)
             plugin.menuManager.openPassMenu(player, page)
         }
     }
 
+    private fun tryClaimTierTrack(
+        player: Player,
+        data: PlayerData,
+        tier: cc.fraio.frpass.model.Tier,
+        isPremiumReward: Boolean
+    ): Boolean {
+        val alreadyClaimed = if (isPremiumReward) data.claimedPremiumTiers.contains(tier.level) else data.claimedTiers.contains(tier.level)
+        val canClaim = data.level >= tier.level && (!isPremiumReward || data.premium)
+        if (!canClaim || alreadyClaimed) return false
+
+        val event = FrPassTierClaimEvent(player, tier.level, isPremiumReward)
+        Bukkit.getPluginManager().callEvent(event)
+        if (event.isCancelled) return false
+
+        if (isPremiumReward) {
+            data.claimedPremiumTiers.add(tier.level)
+            plugin.rewardManager.giveRewards(player, tier.premiumRewards)
+        } else {
+            data.claimedTiers.add(tier.level)
+            plugin.rewardManager.giveRewards(player, tier.freeRewards)
+        }
+        return true
+    }
+
     private fun playClaimSound(player: Player) {
-        val soundStr = plugin.configManager.config.getString("settings.sounds.claim-reward") ?: return
-        if (soundStr.isEmpty()) return
-        try {
-            val sound = Sound.valueOf(soundStr.uppercase())
-            player.playSound(player.location, sound, 1f, 1f)
-        } catch (ignored: Exception) {}
+        SoundUtils.play(player, plugin.configManager.config.getString("settings.sounds.claim-reward"))
     }
 
     @EventHandler

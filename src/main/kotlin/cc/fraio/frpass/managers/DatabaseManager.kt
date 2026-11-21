@@ -101,6 +101,7 @@ class DatabaseManager(private val plugin: FrPass) {
         val sql = """
             CREATE TABLE IF NOT EXISTS player_data (
                 uuid VARCHAR(36) PRIMARY KEY,
+                name VARCHAR(16) DEFAULT '',
                 xp INT DEFAULT 0,
                 level INT DEFAULT 0,
                 premium BOOLEAN DEFAULT $boolType,
@@ -135,6 +136,7 @@ class DatabaseManager(private val plugin: FrPass) {
                     }
 
                     val needed = listOf(
+                        "name" to "VARCHAR(16) DEFAULT ''",
                         "pending_tickets" to "INT DEFAULT 0",
                         "claimed_tiers" to "TEXT",
                         "claimed_premium_tiers" to "TEXT",

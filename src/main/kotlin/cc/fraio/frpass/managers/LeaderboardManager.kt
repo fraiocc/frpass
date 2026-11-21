@@ -1,12 +1,11 @@
 package cc.fraio.frpass.managers
 
 import cc.fraio.frpass.FrPass
+import cc.fraio.frpass.model.LeaderboardEntry
 import com.tcoded.folialib.wrapper.task.WrappedTask
 import org.bukkit.Bukkit
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-
-data class LeaderboardEntry(val uuid: UUID, val name: String, val level: Int, val xp: Int)
 
 class LeaderboardManager(private val plugin: FrPass) {
 
@@ -34,13 +33,14 @@ class LeaderboardManager(private val plugin: FrPass) {
         val unknown = plugin.configManager.config.getString("placeholders.top-empty", "-") ?: "-"
         try {
             plugin.databaseManager.getConnection()?.use { conn ->
-                conn.prepareStatement("SELECT uuid, level, xp FROM player_data WHERE level > 0 OR xp > 0 ORDER BY level DESC, xp DESC LIMIT ?").use { stmt ->
+                conn.prepareStatement("SELECT uuid, name, level, xp FROM player_data WHERE level > 0 OR xp > 0 ORDER BY level DESC, xp DESC LIMIT ?").use { stmt ->
                     stmt.setInt(1, size)
                     stmt.executeQuery().use { rs ->
                         val result = mutableListOf<LeaderboardEntry>()
                         while (rs.next()) {
                             val uuid = runCatching { UUID.fromString(rs.getString("uuid")) }.getOrNull() ?: continue
-                            val name = Bukkit.getOfflinePlayer(uuid).name ?: unknown
+                            val dbName = runCatching { rs.getString("name") }.getOrNull()?.takeIf { it.isNotBlank() }
+                            val name = dbName ?: Bukkit.getOfflinePlayer(uuid).name ?: unknown
                             result.add(LeaderboardEntry(uuid, name, rs.getInt("level"), rs.getInt("xp")))
                         }
                         entries = result

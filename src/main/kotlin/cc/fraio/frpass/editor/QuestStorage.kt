@@ -1,30 +1,20 @@
 package cc.fraio.frpass.editor
 
 import cc.fraio.frpass.FrPass
+import cc.fraio.frpass.quests.QuestRepository
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
 
 class QuestStorage(private val plugin: FrPass) {
 
-    private val questsFolder = File(plugin.dataFolder, "core/quests")
-
-    init {
-        if (!questsFolder.exists()) {
-            questsFolder.mkdirs()
-        }
-    }
+    private val repository = QuestRepository(plugin)
 
     fun saveQuest(editorData: QuestEditorData): Boolean {
         return try {
             val quest = editorData.toQuest()
-            val targetFile = findFileForQuest(editorData.originalId) ?: File(questsFolder, "custom_quests.yml")
+            val targetFile = repository.findQuestFile(editorData.originalId) ?: File(repository.folder, "custom_quests.yml")
+            val config = if (targetFile.exists()) YamlConfiguration.loadConfiguration(targetFile) else YamlConfiguration()
 
-            if (!targetFile.exists()) {
-                targetFile.createNewFile()
-            }
-
-            val config = YamlConfiguration.loadConfiguration(targetFile)
-            
             if (editorData.originalId != null && editorData.originalId != quest.id) {
                 config.set("quests.${editorData.originalId}", null)
             }
@@ -36,19 +26,10 @@ class QuestStorage(private val plugin: FrPass) {
             config.set("$path.required-amount", quest.requiredAmount)
             config.set("$path.reward-xp", quest.rewardXp)
             config.set("$path.extra-rewards", quest.extraRewards)
-            if (!quest.material.isNullOrBlank()) {
-                config.set("$path.material", quest.material)
-            } else {
-                config.set("$path.material", null)
-            }
-            if (quest.customModelData > 0) {
-                config.set("$path.custom-model-data", quest.customModelData)
-            } else {
-                config.set("$path.custom-model-data", null)
-            }
+            config.set("$path.material", if (quest.material.isNullOrBlank()) null else quest.material)
+            config.set("$path.custom-model-data", if (quest.customModelData > 0) quest.customModelData else null)
 
-            plugin.frSync.suppress()
-            config.save(targetFile)
+            repository.saveConfig(targetFile, config)
             plugin.questManager.loadAll()
             true
         } catch (e: Exception) {
@@ -59,28 +40,15 @@ class QuestStorage(private val plugin: FrPass) {
 
     fun deleteQuest(questId: String): Boolean {
         return try {
-            val file = findFileForQuest(questId) ?: return false
+            val file = repository.findQuestFile(questId) ?: return false
             val config = YamlConfiguration.loadConfiguration(file)
             config.set("quests.$questId", null)
-            plugin.frSync.suppress()
-            config.save(file)
+            repository.saveConfig(file, config)
             plugin.questManager.loadAll()
             true
         } catch (e: Exception) {
             plugin.logger.severe("Failed to delete quest $questId: ${e.message}")
             false
         }
-    }
-
-    private fun findFileForQuest(questId: String?): File? {
-        if (questId == null) return null
-        val files = questsFolder.listFiles()?.filter { it.extension.equals("yml", ignoreCase = true) } ?: return null
-        for (file in files) {
-            val config = YamlConfiguration.loadConfiguration(file)
-            if (config.contains("quests.$questId")) {
-                return file
-            }
-        }
-        return null
     }
 }

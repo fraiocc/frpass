@@ -24,7 +24,8 @@ class QuestTasks(private val plugin: FrPass) {
             for (player in Bukkit.getOnlinePlayers()) {
                 val data = plugin.playerDataManager.getPlayer(player.uniqueId)
                 val hasWalkQuest = data?.activeQuests?.any { questId ->
-                    plugin.questManager.quests[questId]?.type == QuestType.WALK
+                    val quest = plugin.questManager.quests[questId]
+                    quest != null && quest.type == QuestType.WALK && (data.questProgress[questId] ?: 0) < quest.requiredAmount
                 } == true
 
                 if (!hasWalkQuest) {

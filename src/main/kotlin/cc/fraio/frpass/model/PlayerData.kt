@@ -1,4 +1,4 @@
-package cc.fraio.frpass.data
+package cc.fraio.frpass.model
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -6,6 +6,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 data class PlayerData(
     val uuid: UUID,
+    @Volatile var name: String = "",
     @Volatile var xp: Int = 0,
     @Volatile var level: Int = 0,
     @Volatile var premium: Boolean = false,

@@ -1,20 +1,10 @@
 package cc.fraio.frpass.managers
 
 import cc.fraio.frpass.FrPass
+import cc.fraio.frpass.model.Tier
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-
-data class Tier(
-    val level: Int, 
-    val requiredXp: Int, 
-    val freeRewards: List<String>, 
-    val premiumRewards: List<String>,
-    val customIcon: String? = null,
-    val customName: String? = null,
-    val customLore: List<String>? = null,
-    val customModelData: Int? = null
-)
 
 class TierManager(private val plugin: FrPass) {
     val tiers = ConcurrentHashMap<Int, Tier>()

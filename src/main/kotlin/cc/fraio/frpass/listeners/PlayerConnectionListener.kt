@@ -1,7 +1,7 @@
 package cc.fraio.frpass.listeners
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.utils.msg
+import cc.fraio.frpass.utils.sendMsg
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
@@ -16,7 +16,7 @@ class PlayerConnectionListener(private val plugin: FrPass) : Listener {
         
         if (player.isOp && plugin.updateChecker.updateAvailable) {
             val link = plugin.updateChecker.downloadLink
-            player.sendMessage(player.msg("messages.update-available", "%link%" to link))
+            player.sendMsg("messages.update-available", "%link%" to link)
         }
 
         if (plugin.configManager.config.getBoolean("settings.notify-unclaimed-on-join", true)) {
@@ -24,7 +24,7 @@ class PlayerConnectionListener(private val plugin: FrPass) : Listener {
                 if (!player.isOnline) return@Runnable
                 val unclaimed = plugin.playerDataManager.getUnclaimedRewardCount(player.uniqueId)
                 if (unclaimed > 0) {
-                    player.sendMessage(player.msg("messages.unclaimed-rewards-reminder", "%amount%" to unclaimed.toString()))
+                    player.sendMsg("messages.unclaimed-rewards-reminder", "%amount%" to unclaimed.toString())
                 }
             }, 60L)
         }
@@ -38,7 +38,7 @@ class PlayerConnectionListener(private val plugin: FrPass) : Listener {
         plugin.menuPacketListener?.cleanPlayer(player.uniqueId)
         plugin.menuManager.removeOpenMenu(player)
         plugin.menuManager.stopRerollSession(player)
-        plugin.questEditorManager.closeEditorMenu(player)
-        plugin.questEditorManager.endSession(player)
+        plugin.editorManager.closeEditorMenu(player)
+        plugin.editorManager.endSession(player)
     }
 }

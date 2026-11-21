@@ -18,7 +18,17 @@ class MenuInventoryHolder(val type: MenuManager.MenuType, val page: Int) : Inven
 
 class MenuManager(private val plugin: FrPass) {
     companion object {
-        val MENU_FILES = listOf("main_menu.yml", "quests_menu.yml", "pass_menu.yml", "leaderboard_menu.yml", "editor_list_menu.yml", "editor_edit_menu.yml")
+        val MENU_FILES = listOf(
+            "main_menu.yml",
+            "quests_menu.yml",
+            "pass_menu.yml",
+            "leaderboard_menu.yml",
+            "editor_hub_menu.yml",
+            "editor_list_menu.yml",
+            "editor_edit_menu.yml",
+            "editor_tier_list_menu.yml",
+            "editor_tier_edit_menu.yml"
+        )
     }
 
     enum class MenuType { MAIN, QUESTS, PASS, LEADERBOARD }

@@ -6,7 +6,7 @@ import me.clip.placeholderapi.PlaceholderAPI
 
 object PAPIHook {
     val isAvailable: Boolean
-        get() = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null
+        get() = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")
 
     fun setPlaceholders(player: Player?, text: String): String {
         if (!isAvailable || player == null) return text

@@ -7,7 +7,6 @@ import org.bukkit.command.CommandMap
 import org.bukkit.command.PluginIdentifiableCommand
 import org.bukkit.command.SimpleCommandMap
 import org.bukkit.plugin.Plugin
-import java.lang.reflect.Field
 
 class DynamicPassCommand(
     name: String,
@@ -39,10 +38,7 @@ object CommandAliasUtil {
 
     private fun getCommandMap(): CommandMap? {
         return try {
-            val server = Bukkit.getServer()
-            val field: Field = server.javaClass.getDeclaredField("commandMap")
-            field.isAccessible = true
-            field.get(server) as? CommandMap
+            Bukkit.getCommandMap()
         } catch (_: Throwable) {
             null
         }

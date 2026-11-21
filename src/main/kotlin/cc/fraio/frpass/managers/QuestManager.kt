@@ -2,18 +2,25 @@ package cc.fraio.frpass.managers
 
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.api.events.FrPassQuestProgressEvent
+import cc.fraio.frpass.model.PlayerData
 import cc.fraio.frpass.quests.Quest
 import cc.fraio.frpass.quests.QuestType
-import cc.fraio.frpass.utils.msg
+import cc.fraio.frpass.utils.ColorUtils
+import cc.fraio.frpass.utils.SoundUtils
+import cc.fraio.frpass.utils.sendMsg
+import kotlin.math.roundToInt
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
-import org.bukkit.Sound
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import java.io.File
 import java.util.function.Consumer
 
 class QuestManager(private val plugin: FrPass) {
+    companion object {
+        private const val CYCLE_BONUS_KEY = "__cycle_bonus__"
+    }
+
     @Volatile
     var quests: Map<String, Quest> = emptyMap()
         private set
@@ -70,24 +77,8 @@ class QuestManager(private val plugin: FrPass) {
         for (questId in data.activeQuests) {
             val quest = quests[questId] ?: continue
             if (quest.type != type) continue
-
-            if (!quest.target.isNullOrEmpty() && !quest.target.equals(target, ignoreCase = true)) {
-                continue
-            }
-            
-            val currentProgress = data.questProgress[quest.id] ?: 0
-            if (currentProgress >= quest.requiredAmount) continue
-            
-            val newProgress = (currentProgress + amount).coerceAtMost(quest.requiredAmount)
-            val isCompleted = newProgress >= quest.requiredAmount
-            val event = FrPassQuestProgressEvent(player, quest, currentProgress, newProgress, isCompleted)
-            Bukkit.getPluginManager().callEvent(event)
-            if (event.isCancelled) continue
-
-            data.questProgress[quest.id] = newProgress
-            if (isCompleted) {
-                onQuestComplete(player, quest)
-            }
+            if (!quest.target.isNullOrEmpty() && !quest.target.equals(target, ignoreCase = true)) continue
+            applyQuestProgress(player, data, quest, amount)
         }
     }
 
@@ -95,6 +86,12 @@ class QuestManager(private val plugin: FrPass) {
         if (amount <= 0) return false
         val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return false
         val quest = quests[questId] ?: return false
+        if (!applyQuestProgress(player, data, quest, amount)) return false
+        plugin.playerDataManager.savePlayer(player.uniqueId)
+        return true
+    }
+
+    private fun applyQuestProgress(player: Player, data: PlayerData, quest: Quest, amount: Int): Boolean {
         val currentProgress = data.questProgress[quest.id] ?: 0
         if (currentProgress >= quest.requiredAmount) return false
 
@@ -107,8 +104,18 @@ class QuestManager(private val plugin: FrPass) {
         data.questProgress[quest.id] = newProgress
         if (isCompleted) {
             onQuestComplete(player, quest)
+        } else if (plugin.configManager.config.getBoolean("settings.quest-actionbar", true)) {
+            val percent = ((newProgress * 100.0) / quest.requiredAmount).roundToInt().coerceIn(0, 100)
+            val text = plugin.langManager.getMessage(
+                player,
+                "messages.quest-progress-actionbar",
+                "%quest%" to (quest.displayName ?: quest.id),
+                "%progress%" to newProgress.toString(),
+                "%required%" to quest.requiredAmount.toString(),
+                "%percent%" to percent.toString()
+            )
+            player.sendActionBar(ColorUtils.toComponent(player, text))
         }
-        plugin.playerDataManager.savePlayer(player.uniqueId)
         return true
     }
 
@@ -129,7 +136,9 @@ class QuestManager(private val plugin: FrPass) {
     }
 
     private fun onQuestComplete(player: Player, quest: Quest) {
-        plugin.playerDataManager.addXp(player.uniqueId, quest.rewardXp)
+        val multiplier = plugin.boostManager.getEffectiveMultiplier(player)
+        val awardedXp = (quest.rewardXp * multiplier).roundToInt().coerceAtLeast(0)
+        plugin.playerDataManager.addXp(player.uniqueId, awardedXp)
         plugin.rewardManager.giveRewards(player, quest.extraRewards)
         
         val prefix = plugin.configManager.config.getString("settings.prefix") ?: ""
@@ -137,17 +146,37 @@ class QuestManager(private val plugin: FrPass) {
 
         plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
             if (!player.isOnline) return@Consumer
-            player.sendMessage(player.msg("messages.quest-completed", 
+            player.sendMsg(
+                "messages.quest-completed",
                 "%prefix%" to prefix,
                 "%quest%" to (quest.displayName ?: quest.id),
-                "%xp%" to quest.rewardXp.toString()
-            ))
+                "%xp%" to awardedXp.toString()
+            )
+            SoundUtils.play(player, soundStr)
+        })
 
-            if (!soundStr.isNullOrEmpty()) {
-                try {
-                    val sound = Sound.valueOf(soundStr.uppercase())
-                    player.playSound(player.location, sound, 1f, 1f)
-                } catch (_: Exception) {}
+        checkAllQuestsBonus(player)
+    }
+
+    private fun checkAllQuestsBonus(player: Player) {
+        val cfg = plugin.configManager.config
+        if (!cfg.getBoolean("quest-system.completion-bonus.enabled", true)) return
+        val data = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
+        if (data.questProgress[CYCLE_BONUS_KEY] == 1) return
+
+        val activeQuests = data.activeQuests.mapNotNull { quests[it] }
+        if (activeQuests.isEmpty()) return
+        if (activeQuests.any { (data.questProgress[it.id] ?: 0) < it.requiredAmount }) return
+
+        data.questProgress[CYCLE_BONUS_KEY] = 1
+        val bonusXp = cfg.getInt("quest-system.completion-bonus.xp", 250).coerceAtLeast(0)
+        val bonusRewards = cfg.getStringList("quest-system.completion-bonus.rewards")
+        if (bonusXp > 0) plugin.playerDataManager.addXp(player.uniqueId, bonusXp)
+        if (bonusRewards.isNotEmpty()) plugin.rewardManager.giveRewards(player, bonusRewards)
+
+        plugin.foliaLib.scheduler.runAtEntity(player, Consumer { _ ->
+            if (player.isOnline) {
+                player.sendMsg("messages.all-quests-completed", "%xp%" to bonusXp.toString())
             }
         })
     }

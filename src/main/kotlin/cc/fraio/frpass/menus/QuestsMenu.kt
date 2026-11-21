@@ -1,10 +1,8 @@
 package cc.fraio.frpass.menus
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.ItemBuilder
 import cc.fraio.frpass.utils.msg
-import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
 
@@ -22,31 +20,19 @@ class QuestsMenu(private val plugin: FrPass) {
         val titleRaw = config.getString("menu.title", "&8Quests Menu (Page %page%)")!!
             .replace("%page%", currentPage.toString())
             .replace("%total%", totalPages.toString())
-        val title = ColorUtils.colorize(player, titleRaw)
         val size = config.getInt("menu.size", 54)
 
-        val inv = Bukkit.createInventory(MenuInventoryHolder(MenuManager.MenuType.QUESTS, currentPage), size, title)
+        val inv = MenuSupport.createInventory(MenuInventoryHolder(MenuManager.MenuType.QUESTS, currentPage), size, player, titleRaw)
 
         val itemsSection = config.getConfigurationSection("menu.items")
-        val bgMatStr = itemsSection?.getString("background.material", "GRAY_STAINED_GLASS_PANE") ?: "GRAY_STAINED_GLASS_PANE"
-        val bgModelData = itemsSection?.getInt("background.custom-model-data", 0) ?: 0
-        val bgItem = ItemBuilder.fromIdentifier(bgMatStr, Material.GRAY_STAINED_GLASS_PANE)
-            .setName(" ", player)
-            .setCustomModelData(bgModelData)
-            .build()
+        val bgItem = MenuSupport.buildBackgroundItem(itemsSection, player)
 
         if (itemsSection != null) {
             for (key in itemsSection.getKeys(false)) {
                 val keyName = key.lowercase()
                 val slots = itemsSection.getIntegerList("$key.slots")
 
-                if (keyName == "prev_page" && currentPage <= 1) {
-                    for (s in slots) {
-                        if (s in 0 until size) inv.setItem(s, bgItem)
-                    }
-                    continue
-                }
-                if (keyName == "next_page" && currentPage >= totalPages) {
+                if ((keyName == "prev_page" && currentPage <= 1) || (keyName == "next_page" && currentPage >= totalPages)) {
                     for (s in slots) {
                         if (s in 0 until size) inv.setItem(s, bgItem)
                     }
@@ -54,23 +40,8 @@ class QuestsMenu(private val plugin: FrPass) {
                 }
                 if (keyName == "reset_timer" && !plugin.cycleManager.isRotating()) continue
 
-                val materialStr = itemsSection.getString("$key.material", "STONE")!!
                 val timeText = if (keyName == "reset_timer") plugin.cycleManager.formatRemaining(player) else ""
-                val name = itemsSection.getString("$key.name", "")!!.replace("%time%", timeText)
-                val lore = itemsSection.getStringList("$key.lore").map { it.replace("%time%", timeText) }
-                val modelData = itemsSection.getInt("$key.custom-model-data", 0)
-
-                val item = ItemBuilder.fromIdentifier(materialStr, Material.STONE)
-                    .setName(name, player)
-                    .setLore(lore, player)
-                    .setCustomModelData(modelData)
-                    .build()
-
-                for (slot in slots) {
-                    if (slot in 0 until size) {
-                        inv.setItem(slot, item)
-                    }
-                }
+                MenuSupport.placeSectionItem(inv, itemsSection, key, player, size) { it.replace("%time%", timeText) }
             }
         }
 

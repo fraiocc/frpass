@@ -1,11 +1,12 @@
 package cc.fraio.frpass
 
 import cc.fraio.frpass.api.FrPassAPI
+import cc.fraio.frpass.api.FrPassAPIImpl
 import cc.fraio.frpass.api.FrPassProvider
 import cc.fraio.frpass.commands.AdminCommand
 import cc.fraio.frpass.commands.PassCommand
-import cc.fraio.frpass.editor.QuestEditorListener
-import cc.fraio.frpass.editor.QuestEditorManager
+import cc.fraio.frpass.editor.EditorListener
+import cc.fraio.frpass.editor.EditorManager
 import cc.fraio.frpass.hooks.FrPassExpansion
 import cc.fraio.frpass.hooks.VaultHook
 import cc.fraio.frpass.listeners.InventoryListener
@@ -14,6 +15,7 @@ import cc.fraio.frpass.listeners.PlayerConnectionListener
 import cc.fraio.frpass.listeners.QuestListener
 import cc.fraio.frpass.listeners.TicketListener
 import cc.fraio.frpass.managers.AIManager
+import cc.fraio.frpass.managers.BoostManager
 import cc.fraio.frpass.managers.ConfigManager
 import cc.fraio.frpass.managers.CycleManager
 import cc.fraio.frpass.managers.DatabaseManager
@@ -25,18 +27,16 @@ import cc.fraio.frpass.managers.RewardManager
 import cc.fraio.frpass.managers.TicketManager
 import cc.fraio.frpass.managers.TierManager
 import cc.fraio.frpass.menus.MenuManager
-import cc.fraio.frpass.quests.QuestType
 import cc.fraio.frpass.tasks.QuestTasks
 import cc.fraio.frpass.utils.CommandAliasUtil
 import cc.fraio.frpass.utils.FrSync
 import cc.fraio.frpass.utils.ItemBuilder
 import cc.fraio.frpass.utils.UpdateChecker
 import com.tcoded.folialib.FoliaLib
-import org.bukkit.entity.Player
+import org.bukkit.plugin.ServicePriority
 import org.bukkit.plugin.java.JavaPlugin
-import java.util.UUID
 
-class FrPass : JavaPlugin(), FrPassAPI {
+class FrPass : JavaPlugin() {
     
     companion object {
         lateinit var instance: FrPass private set
@@ -52,11 +52,12 @@ class FrPass : JavaPlugin(), FrPassAPI {
     lateinit var questManager: QuestManager private set
     lateinit var questTasks: QuestTasks private set
     lateinit var cycleManager: CycleManager private set
+    lateinit var boostManager: BoostManager private set
     lateinit var leaderboardManager: LeaderboardManager private set
     lateinit var updateChecker: UpdateChecker private set
     lateinit var ticketManager: TicketManager private set
     lateinit var aiManager: AIManager private set
-    lateinit var questEditorManager: QuestEditorManager private set
+    lateinit var editorManager: EditorManager private set
     lateinit var frSync: FrSync private set
     lateinit var foliaLib: FoliaLib private set
     var menuPacketListener: MenuPacketListener? = null
@@ -107,6 +108,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
         
         rewardManager = RewardManager(this)
         cycleManager = CycleManager(this)
+        boostManager = BoostManager(this)
         
         playerDataManager = PlayerDataManager(this)
         playerDataManager.init()
@@ -115,7 +117,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
         leaderboardManager.start()
         
         menuManager = MenuManager(this)
-        questEditorManager = QuestEditorManager(this)
+        editorManager = EditorManager(this)
         
         questTasks = QuestTasks(this)
         questTasks.startTasks()
@@ -128,7 +130,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
             registerEvents(PlayerConnectionListener(this@FrPass), this@FrPass)
             registerEvents(QuestListener(this@FrPass), this@FrPass)
             registerEvents(TicketListener(this@FrPass), this@FrPass)
-            registerEvents(QuestEditorListener(this@FrPass), this@FrPass)
+            registerEvents(EditorListener(this@FrPass), this@FrPass)
         }
         menuPacketListener = MenuPacketListener(this).also { it.register() }
         
@@ -148,8 +150,10 @@ class FrPass : JavaPlugin(), FrPassAPI {
         }
         
         CommandAliasUtil.registerAliases(this)
-        
-        FrPassProvider.register(this)
+
+        val apiImpl = FrPassAPIImpl(this)
+        FrPassProvider.register(apiImpl)
+        server.servicesManager.register(FrPassAPI::class.java, apiImpl, this, ServicePriority.Normal)
         
         updateChecker = UpdateChecker(this)
         updateChecker.checkForUpdates()
@@ -170,7 +174,7 @@ class FrPass : JavaPlugin(), FrPassAPI {
         leaderboardManager.start()
         menuManager.loadMenuConfigs()
         menuManager.refreshOpenMenus()
-        questEditorManager.refreshOpenEditors()
+        editorManager.refreshOpenEditors()
         CommandAliasUtil.registerAliases(this)
         if (this::aiManager.isInitialized) {
             aiManager.reload()
@@ -198,82 +202,8 @@ class FrPass : JavaPlugin(), FrPassAPI {
         }
         menuPacketListener?.unregister()
         menuPacketListener = null
+        FrPassProvider.unregister()
+        server.servicesManager.unregisterAll(this)
         logger.info("FrPass has been disabled!")
-    }
-
-    // FrPassAPI Implementation
-
-    override fun getPlayerLevel(uuid: UUID): Int {
-        return playerDataManager.getPlayer(uuid)?.level ?: 0
-    }
-
-    override fun getPlayerXp(uuid: UUID): Int {
-        return playerDataManager.getPlayer(uuid)?.xp ?: 0
-    }
-
-    override fun isPremium(uuid: UUID): Boolean {
-        return playerDataManager.getPlayer(uuid)?.premium ?: false
-    }
-
-    override fun setPremium(uuid: UUID, premium: Boolean) {
-        val data = playerDataManager.getPlayer(uuid) ?: return
-        data.premium = premium
-        playerDataManager.savePlayer(uuid)
-    }
-
-    override fun addXp(uuid: UUID, amount: Int) {
-        playerDataManager.addXp(uuid, amount)
-    }
-
-    override fun setXp(uuid: UUID, xp: Int) {
-        playerDataManager.setXp(uuid, xp)
-    }
-
-    override fun setLevel(uuid: UUID, level: Int) {
-        playerDataManager.setLevel(uuid, level)
-    }
-
-    override fun resetPlayer(uuid: UUID) {
-        playerDataManager.resetPlayer(uuid)
-    }
-
-    override fun giveTicket(player: Player, amount: Int) {
-        ticketManager.giveTicket(player, amount)
-    }
-
-    override fun completeQuest(player: Player, questId: String): Boolean {
-        return questManager.completeQuest(player, questId)
-    }
-
-    override fun getUnclaimedRewardCount(uuid: UUID): Int {
-        return playerDataManager.getUnclaimedRewardCount(uuid)
-    }
-
-    override fun getRequiredXpForNextLevel(uuid: UUID): Int {
-        val data = playerDataManager.getPlayer(uuid) ?: return 0
-        val nextTier = tierManager.getTier(data.level + 1)
-        return nextTier?.requiredXp ?: 0
-    }
-
-    override fun getRemainingXpForNextLevel(uuid: UUID): Int {
-        val data = playerDataManager.getPlayer(uuid) ?: return 0
-        val nextTier = tierManager.getTier(data.level + 1)
-        return if (nextTier != null) (nextTier.requiredXp - data.xp).coerceAtLeast(0) else 0
-    }
-
-    override fun getActiveQuests(uuid: UUID): List<String> {
-        return playerDataManager.getPlayer(uuid)?.activeQuests?.toList() ?: emptyList()
-    }
-
-    override fun getQuestProgress(uuid: UUID, questId: String): Int {
-        return playerDataManager.getPlayer(uuid)?.questProgress?.get(questId) ?: 0
-    }
-
-    override fun addQuestProgress(player: Player, type: QuestType, amount: Int) {
-        questManager.handleProgress(player, type, null, amount)
-    }
-
-    override fun addQuestProgress(player: Player, questId: String, amount: Int): Boolean {
-        return questManager.addQuestProgress(player, questId, amount)
     }
 }

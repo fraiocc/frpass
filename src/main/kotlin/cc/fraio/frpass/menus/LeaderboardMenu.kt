@@ -1,7 +1,6 @@
 package cc.fraio.frpass.menus
 
 import cc.fraio.frpass.FrPass
-import cc.fraio.frpass.utils.ColorUtils
 import cc.fraio.frpass.utils.ItemBuilder
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -12,29 +11,19 @@ class LeaderboardMenu(private val plugin: FrPass) {
 
     fun open(player: Player) {
         val config = plugin.menuManager.getMenuConfig("leaderboard_menu.yml")
-        val title = ColorUtils.colorize(player, config.getString("menu.title", "&8Leaderboard")!!)
         val size = config.getInt("menu.size", 36)
-
-        val inv = Bukkit.createInventory(MenuInventoryHolder(MenuManager.MenuType.LEADERBOARD, 1), size, title)
+        val inv = MenuSupport.createInventory(
+            MenuInventoryHolder(MenuManager.MenuType.LEADERBOARD, 1),
+            size,
+            player,
+            config.getString("menu.title", "&8Leaderboard")!!
+        )
 
         val itemsSection = config.getConfigurationSection("menu.items")
         if (itemsSection != null) {
             for (key in itemsSection.getKeys(false)) {
                 if (key == "entry") continue
-                val materialStr = itemsSection.getString("$key.material", "STONE")!!
-                val name = itemsSection.getString("$key.name", "")!!
-                val lore = itemsSection.getStringList("$key.lore")
-                val modelData = itemsSection.getInt("$key.custom-model-data", 0)
-
-                val item = ItemBuilder.fromIdentifier(materialStr, Material.STONE)
-                    .setName(name, player)
-                    .setLore(lore, player)
-                    .setCustomModelData(modelData)
-                    .build()
-
-                for (slot in itemsSection.getIntegerList("$key.slots")) {
-                    if (slot in 0 until size) inv.setItem(slot, item)
-                }
+                MenuSupport.placeSectionItem(inv, itemsSection, key, player, size)
             }
         }
 

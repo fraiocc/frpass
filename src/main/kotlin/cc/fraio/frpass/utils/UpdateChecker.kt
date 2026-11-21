@@ -1,6 +1,8 @@
 package cc.fraio.frpass.utils
 
 import cc.fraio.frpass.FrPass
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URI
 import java.util.function.Consumer
@@ -22,22 +24,17 @@ class UpdateChecker(private val plugin: FrPass) {
                 connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
                 connection.connectTimeout = 5000
                 connection.readTimeout = 5000
-                
-                if (connection.responseCode == 200) {
-                    val reader = java.io.BufferedReader(java.io.InputStreamReader(connection.inputStream))
-                    val response = reader.readText()
-                    reader.close()
 
+                if (connection.responseCode == 200) {
+                    val response = BufferedReader(InputStreamReader(connection.inputStream)).use { it.readText() }
                     val regex = "\"tag_name\"\\s*:\\s*\"([^\"]+)\"".toRegex()
                     val match = regex.find(response)
-                    
+
                     if (match != null) {
-                        val tagName = match.groupValues[1]
-                        latestVersion = tagName.replace("v", "")
-                        
-                        val currentVersion = plugin.description.version.replace("v", "")
-                        
-                        if (latestVersion != currentVersion) {
+                        latestVersion = match.groupValues[1].removePrefix("v")
+                        val currentVersion = plugin.pluginMeta.version.removePrefix("v")
+
+                        if (isNewerVersion(latestVersion, currentVersion)) {
                             updateAvailable = true
                             plugin.logger.warning("==========================================")
                             plugin.logger.warning("New Update!! Download: $downloadLink")
@@ -50,5 +47,21 @@ class UpdateChecker(private val plugin: FrPass) {
                 plugin.logger.warning("Could not check for updates: ${e.message}")
             }
         })
+    }
+
+    private fun isNewerVersion(latest: String, current: String): Boolean {
+        val latestParts = parseParts(latest)
+        val currentParts = parseParts(current)
+        val length = maxOf(latestParts.size, currentParts.size)
+        for (i in 0 until length) {
+            val l = latestParts.getOrElse(i) { 0 }
+            val c = currentParts.getOrElse(i) { 0 }
+            if (l != c) return l > c
+        }
+        return false
+    }
+
+    private fun parseParts(version: String): List<Int> {
+        return version.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
     }
 }

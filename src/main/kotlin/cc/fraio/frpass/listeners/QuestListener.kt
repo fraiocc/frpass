@@ -84,17 +84,16 @@ class QuestListener(private val plugin: FrPass) : Listener {
 
     @EventHandler(ignoreCancelled = true)
     fun onPistonExtend(event: BlockPistonExtendEvent) {
-        val dir = event.direction
-        val moved = event.blocks.map { BlockPos(it) }.filter { placedBlocks.remove(it) }
-        for (pos in moved) {
-            placedBlocks.add(BlockPos(pos.world, pos.x + dir.modX, pos.y + dir.modY, pos.z + dir.modZ))
-        }
+        shiftPlacedBlocks(event.blocks, event.direction)
     }
 
     @EventHandler(ignoreCancelled = true)
     fun onPistonRetract(event: BlockPistonRetractEvent) {
-        val dir = event.direction
-        val moved = event.blocks.map { BlockPos(it) }.filter { placedBlocks.remove(it) }
+        shiftPlacedBlocks(event.blocks, event.direction)
+    }
+
+    private fun shiftPlacedBlocks(blocks: List<Block>, dir: org.bukkit.block.BlockFace) {
+        val moved = blocks.map { BlockPos(it) }.filter { placedBlocks.remove(it) }
         for (pos in moved) {
             placedBlocks.add(BlockPos(pos.world, pos.x + dir.modX, pos.y + dir.modY, pos.z + dir.modZ))
         }

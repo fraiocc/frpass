@@ -3,6 +3,7 @@ package cc.fraio.frpass.commands
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.hooks.VaultHook
 import cc.fraio.frpass.utils.msg
+import cc.fraio.frpass.utils.sendMsg
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
@@ -25,6 +26,11 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
 
         if (args.isNotEmpty() && args[0].equals("top", ignoreCase = true)) {
             handleTop(sender)
+            return true
+        }
+
+        if (plugin.playerDataManager.getPlayer(sender.uniqueId) == null) {
+            sender.sendMsg("messages.data-loading")
             return true
         }
 

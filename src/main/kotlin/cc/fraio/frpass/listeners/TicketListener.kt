@@ -2,8 +2,8 @@ package cc.fraio.frpass.listeners
 
 import cc.fraio.frpass.FrPass
 import cc.fraio.frpass.api.FrPassProvider
-import cc.fraio.frpass.utils.msg
-import org.bukkit.Sound
+import cc.fraio.frpass.utils.SoundUtils
+import cc.fraio.frpass.utils.sendMsg
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -30,25 +30,22 @@ class TicketListener(private val plugin: FrPass) : Listener {
         
         val pd = plugin.playerDataManager.getPlayer(player.uniqueId) ?: return
         if (pd.premium) {
-            player.sendMessage(player.msg("messages.already-premium"))
+            player.sendMsg("messages.already-premium")
             return
         }
-        
+
         if (item.amount > 1) {
             item.amount -= 1
         } else {
             player.inventory.setItemInMainHand(null)
         }
-        
+
         FrPassProvider.get().setPremium(player.uniqueId, true)
-        
-        val soundName = plugin.configManager.config.getString("settings.sounds.level-up", "ENTITY_PLAYER_LEVELUP") ?: "ENTITY_PLAYER_LEVELUP"
-        try {
-            val sound = Sound.valueOf(soundName.uppercase())
-            player.playSound(player.location, sound, 1f, 1f)
-        } catch (ignored: Exception) {}
-        
-        player.sendMessage(player.msg("messages.ticket-used"))
+
+        val soundName = plugin.configManager.config.getString("settings.sounds.level-up", "ENTITY_PLAYER_LEVELUP")
+        SoundUtils.play(player, soundName)
+
+        player.sendMsg("messages.ticket-used")
     }
 
     @EventHandler

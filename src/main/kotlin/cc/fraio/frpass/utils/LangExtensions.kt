@@ -16,6 +16,15 @@ fun CommandSender.msg(path: String, vararg placeholders: Pair<String, String>): 
     }
 }
 
+fun CommandSender.sendMsg(path: String, vararg placeholders: Pair<String, String>) {
+    val component = if (this is Player) {
+        FrPass.instance.langManager.getComponent(this, path, *placeholders)
+    } else {
+        FrPass.instance.langManager.getComponent(path, *placeholders)
+    }
+    sendMessage(component)
+}
+
 fun langMsg(path: String, vararg placeholders: Pair<String, String>): String {
     return FrPass.instance.langManager.getMessage(path, *placeholders)
 }

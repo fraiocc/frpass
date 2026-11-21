@@ -28,11 +28,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     sender.sendMessage(sender.msg("messages.usage-addxp"))
                     return true
                 }
-                val target = Bukkit.getPlayer(args[1])
-                if (target == null) {
-                    sender.sendMessage(sender.msg("messages.player-not-found"))
-                    return true
-                }
+                val target = requireOnlinePlayer(sender, args[1]) ?: return true
                 val amount = args[2].toIntOrNull()
                 if (amount == null || amount <= 0) {
                     sender.sendMessage(sender.msg("messages.invalid-amount"))
@@ -46,11 +42,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     sender.sendMessage(sender.msg("messages.usage-setxp"))
                     return true
                 }
-                val target = Bukkit.getPlayer(args[1])
-                if (target == null) {
-                    sender.sendMessage(sender.msg("messages.player-not-found"))
-                    return true
-                }
+                val target = requireOnlinePlayer(sender, args[1]) ?: return true
                 val amount = args[2].toIntOrNull()
                 if (amount == null || amount < 0) {
                     sender.sendMessage(sender.msg("messages.invalid-amount"))
@@ -64,11 +56,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     sender.sendMessage(sender.msg("messages.usage-setlevel"))
                     return true
                 }
-                val target = Bukkit.getPlayer(args[1])
-                if (target == null) {
-                    sender.sendMessage(sender.msg("messages.player-not-found"))
-                    return true
-                }
+                val target = requireOnlinePlayer(sender, args[1]) ?: return true
                 val level = args[2].toIntOrNull()
                 if (level == null || level < 0) {
                     sender.sendMessage(sender.msg("messages.invalid-amount"))
@@ -82,11 +70,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     sender.sendMessage(sender.msg("messages.usage-reset"))
                     return true
                 }
-                val target = Bukkit.getPlayer(args[1])
-                if (target == null) {
-                    sender.sendMessage(sender.msg("messages.player-not-found"))
-                    return true
-                }
+                val target = requireOnlinePlayer(sender, args[1]) ?: return true
                 plugin.playerDataManager.resetPlayer(target.uniqueId)
                 sender.sendMessage(sender.msg("messages.reset-player", "%player%" to target.name))
             }
@@ -95,11 +79,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     sender.sendMessage(sender.msg("messages.usage-completequest"))
                     return true
                 }
-                val target = Bukkit.getPlayer(args[1])
-                if (target == null) {
-                    sender.sendMessage(sender.msg("messages.player-not-found"))
-                    return true
-                }
+                val target = requireOnlinePlayer(sender, args[1]) ?: return true
                 val questId = args[2]
                 if (!plugin.questManager.quests.containsKey(questId)) {
                     sender.sendMessage(sender.msg("messages.quest-not-found", "%quest%" to questId))
@@ -117,11 +97,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     sender.sendMessage(sender.msg("messages.usage-setpremium"))
                     return true
                 }
-                val target = Bukkit.getPlayer(args[1])
-                if (target == null) {
-                    sender.sendMessage(sender.msg("messages.player-not-found"))
-                    return true
-                }
+                val target = requireOnlinePlayer(sender, args[1]) ?: return true
                 val value = args[2].toBooleanStrictOrNull()
                 if (value == null) {
                     sender.sendMessage(sender.msg("messages.usage-setpremium"))
@@ -141,11 +117,7 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                     sender.sendMessage(sender.msg("messages.usage-giveticket"))
                     return true
                 }
-                val target = Bukkit.getPlayer(args[1])
-                if (target == null) {
-                    sender.sendMessage(sender.msg("messages.player-not-found"))
-                    return true
-                }
+                val target = requireOnlinePlayer(sender, args[1]) ?: return true
                 val amount = args[2].toIntOrNull()
                 if (amount == null || amount <= 0) {
                     sender.sendMessage(sender.msg("messages.invalid-amount"))
@@ -154,12 +126,64 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
                 plugin.ticketManager.giveTicket(target, amount)
                 sender.sendMessage(sender.msg("messages.given-ticket", "%amount%" to amount.toString(), "%player%" to target.name))
             }
+            "boost" -> {
+                if (args.size < 2) {
+                    if (plugin.boostManager.isActive()) {
+                        sender.sendMessage(
+                            sender.msg(
+                                "messages.boost-status",
+                                "%multiplier%" to plugin.boostManager.getGlobalMultiplier().toString(),
+                                "%time%" to plugin.boostManager.formatRemaining(sender as? Player)
+                            )
+                        )
+                    } else {
+                        sender.sendMessage(sender.msg("messages.usage-boost"))
+                    }
+                    return true
+                }
+                if (args[1].equals("off", ignoreCase = true) || args[1].equals("stop", ignoreCase = true)) {
+                    plugin.boostManager.clear()
+                    sender.sendMessage(sender.msg("messages.boost-disabled"))
+                    return true
+                }
+                val multiplier = args[1].toDoubleOrNull()
+                if (multiplier == null || multiplier <= 1.0) {
+                    sender.sendMessage(sender.msg("messages.invalid-amount"))
+                    return true
+                }
+                if (args.size < 3) {
+                    sender.sendMessage(sender.msg("messages.usage-boost"))
+                    return true
+                }
+                val durationMs = cc.fraio.frpass.managers.BoostManager.parseDurationMillis(args[2])
+                if (durationMs == null) {
+                    sender.sendMessage(sender.msg("messages.invalid-duration"))
+                    return true
+                }
+                plugin.boostManager.activate(multiplier, durationMs)
+                val msgText = plugin.langManager.getMessage(
+                    null,
+                    "messages.boost-activated",
+                    "%multiplier%" to multiplier.toString(),
+                    "%time%" to plugin.boostManager.formatRemaining(null)
+                )
+                for (online in Bukkit.getOnlinePlayers()) {
+                    online.sendMessage(msgText)
+                }
+                if (sender !is Player) {
+                    sender.sendMessage(msgText)
+                }
+            }
             "editor" -> {
                 if (sender !is Player) {
                     sender.sendMessage(sender.msg("messages.only-players"))
                     return true
                 }
-                plugin.questEditorManager.openQuestListMenu(sender, 1)
+                when (args.getOrNull(1)?.lowercase()) {
+                    "quests" -> plugin.editorManager.questMenu.openList(sender, 1)
+                    "tiers" -> plugin.editorManager.tierMenu.openList(sender, 1)
+                    else -> plugin.editorManager.openHub(sender)
+                }
             }
             "ai" -> {
                 if (args.size < 2) {
@@ -210,22 +234,39 @@ class AdminCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         return true
     }
 
+    private fun requireOnlinePlayer(sender: CommandSender, name: String): Player? {
+        val target = Bukkit.getPlayerExact(name) ?: Bukkit.getPlayer(name)
+        if (target == null) {
+            sender.sendMessage(sender.msg("messages.player-not-found"))
+        }
+        return target
+    }
+
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String> {
         if (!sender.hasPermission("frpass.admin")) return emptyList()
         
         if (args.size == 1) {
-            val subCommands = listOf("addxp", "setxp", "setlevel", "reset", "completequest", "setpremium", "giveticket", "editor", "ai")
+            val subCommands = listOf("addxp", "setxp", "setlevel", "reset", "completequest", "setpremium", "giveticket", "boost", "editor", "ai")
             return subCommands.filter { it.startsWith(args[0], ignoreCase = true) }
         } else if (args.size == 2) {
             val cmd = args[0].lowercase()
             if (cmd == "ai") {
                 return listOf("create", "edit", "status").filter { it.startsWith(args[1], ignoreCase = true) }
             }
+            if (cmd == "boost") {
+                return listOf("1.5", "2.0", "3.0", "off").filter { it.startsWith(args[1], ignoreCase = true) }
+            }
+            if (cmd == "editor") {
+                return listOf("quests", "tiers").filter { it.startsWith(args[1], ignoreCase = true) }
+            }
             if (cmd in listOf("addxp", "setxp", "setlevel", "reset", "completequest", "setpremium", "giveticket")) {
                 return Bukkit.getOnlinePlayers().map { it.name }.filter { it.startsWith(args[1], ignoreCase = true) }
             }
         } else if (args.size == 3) {
             val cmd = args[0].lowercase()
+            if (cmd == "boost" && !args[1].equals("off", ignoreCase = true)) {
+                return listOf("30m", "1h", "2h", "6h", "1d").filter { it.startsWith(args[2], ignoreCase = true) }
+            }
             if (cmd == "ai" && args[1].equals("edit", ignoreCase = true)) {
                 return plugin.questManager.quests.keys.filter { it.startsWith(args[2], ignoreCase = true) }
             }

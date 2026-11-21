@@ -12,11 +12,11 @@ class FrPassExpansion(private val plugin: FrPass) : PlaceholderExpansion() {
     }
 
     override fun getAuthor(): String {
-        return plugin.description.authors.joinToString(", ")
+        return plugin.pluginMeta.authors.joinToString(", ")
     }
 
     override fun getVersion(): String {
-        return plugin.description.version
+        return plugin.pluginMeta.version
     }
 
     override fun persist(): Boolean {
@@ -67,6 +67,8 @@ class FrPassExpansion(private val plugin: FrPass) : PlaceholderExpansion() {
             }
             "active_quests" -> data.activeQuests.size.toString()
             "quest_reset" -> plugin.cycleManager.formatRemaining(onlinePlayer)
+            "boost" -> "${plugin.boostManager.getEffectiveMultiplier(onlinePlayer)}x"
+            "boost_remaining" -> plugin.boostManager.formatRemaining(onlinePlayer)
             else -> null
         }
     }

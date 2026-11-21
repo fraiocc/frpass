@@ -13,6 +13,7 @@ menu:
       - "&7Extra Rewards: &6%rewards%"
       - ""
       - "&eLeft-Click: &7Edit"
+      - "&bRight-Click: &7Duplicate"
       - "&cShift + Right-Click: &7Delete"
 
   items:
