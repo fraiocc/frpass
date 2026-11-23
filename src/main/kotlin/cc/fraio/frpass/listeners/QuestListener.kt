@@ -111,14 +111,14 @@ class QuestListener(private val plugin: FrPass) : Listener {
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onFish(event: PlayerFishEvent) {
         if (event.state == PlayerFishEvent.State.CAUGHT_FISH) {
             plugin.questManager.handleProgress(event.player, QuestType.FISH, null, 1)
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onCraft(event: CraftItemEvent) {
         val player = event.whoClicked as? Player ?: return
         if (event.slotType != InventoryType.SlotType.RESULT) return
@@ -174,30 +174,30 @@ class QuestListener(private val plugin: FrPass) : Listener {
         plugin.questManager.handleProgress(player, QuestType.CRAFT, recipeResult.type.name, craftedAmount)
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onConsume(event: PlayerItemConsumeEvent) {
         plugin.questManager.handleProgress(event.player, QuestType.CONSUME, event.item.type.name, 1)
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onBreed(event: EntityBreedEvent) {
         val player = event.breeder as? Player ?: return
         plugin.questManager.handleProgress(player, QuestType.BREED_ANIMAL, event.entityType.name, 1)
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onEnchant(event: EnchantItemEvent) {
         plugin.questManager.handleProgress(event.enchanter, QuestType.ENCHANT_ITEM, event.item.type.name, 1)
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onExpChange(event: PlayerExpChangeEvent) {
         if (event.amount > 0) {
             plugin.questManager.handleProgress(event.player, QuestType.EXP_EARN, null, event.amount)
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onShear(event: PlayerShearEntityEvent) {
         plugin.questManager.handleProgress(event.player, QuestType.SHEAR_SHEEP, event.entity.type.name, 1)
     }

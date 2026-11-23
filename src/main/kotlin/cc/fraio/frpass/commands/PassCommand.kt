@@ -83,7 +83,7 @@ class PassCommand(private val plugin: FrPass) : CommandExecutor, TabCompleter {
         }
 
         val targetName = args[1]
-        val target = Bukkit.getPlayer(targetName)
+        val target = Bukkit.getPlayerExact(targetName)
         if (target == null || !target.isOnline) {
             sender.sendMessage(sender.msg("messages.player-not-found"))
             return
